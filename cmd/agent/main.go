@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
 	"github.com/fatih/structs"
@@ -16,18 +17,41 @@ type UserStats struct {
 	RandomValue float64
 }
 
-const pollIntervalSec = 2    // Update metrics interval
-const reportIntervalSec = 10 // Send metrics interval
+// flag: "-a localhost:8080"
+var endpoint string
 
-const host = "localhost"
-const port = "8080"
+const aFlag = "a"
+const aDefault = "localhost:8080"
+const aUsage = "specify the url"
+
+// flag: "-p 2"
+var pollIntervalSec int
+
+const pFlag = "p"
+const pDefault = 2
+const pUsage = "update metrics interval"
+
+// flag: "-r 10"
+var reportIntervalSec int
+
+const rFlag = "r"
+const rDefault = 10
+const rUsage = "send metrics interval"
+
 const method = "update"
 
-var baseURL = fmt.Sprintf("http://%s:%s/%s", host, port, method)
+var baseURL string
 
 func main() {
-	poolTicker := time.NewTicker(pollIntervalSec * time.Second)
-	reportTicker := time.NewTicker(reportIntervalSec * time.Second)
+	flag.StringVar(&endpoint, aFlag, aDefault, aUsage)
+	flag.IntVar(&pollIntervalSec, pFlag, pDefault, pUsage)
+	flag.IntVar(&reportIntervalSec, rFlag, rDefault, rUsage)
+	flag.Parse()
+
+	baseURL = fmt.Sprintf("http://%s/%s", endpoint, method)
+
+	poolTicker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(reportIntervalSec) * time.Second)
 	defer poolTicker.Stop()
 
 	var runtimeStats runtime.MemStats
