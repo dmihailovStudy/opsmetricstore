@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
 	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
 	"github.com/gin-gonic/gin"
@@ -14,13 +15,26 @@ import (
 
 var memStorage = make(map[string]string)
 
-const aFlag = "a"
-
+// flag: "-a localhost:8080"
 var endpoint string
 
+const aFlag = "a"
+const aDefault = "localhost:8080"
+const aUsage = "specify the url"
+
 func main() {
-	flag.StringVar(&endpoint, aFlag, "localhost:8080", "specify the url")
+	flag.StringVar(&endpoint, aFlag, aDefault, aUsage)
 	flag.Parse()
+
+	var envs server.Envs
+	err := envs.Load()
+	if err != nil {
+		log.Err(err).Msg("main: env load error")
+	}
+
+	if envs.Address != "" {
+		endpoint = envs.Address
+	}
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
@@ -36,9 +50,9 @@ func main() {
 	mainPagePath := "/"
 	router.GET(mainPagePath, MainPage)
 
-	err := router.Run(endpoint)
+	err = router.Run(endpoint)
 	if err != nil {
-		log.Err(err).Msg("router run error")
+		log.Err(err).Msg("main: router run error")
 	}
 }
 

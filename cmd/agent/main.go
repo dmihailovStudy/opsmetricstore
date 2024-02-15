@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/dmihailovStudy/opsmetricstore/internal/config/agent"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
 	"github.com/fatih/structs"
+	"github.com/rs/zerolog/log"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -47,6 +49,22 @@ func main() {
 	flag.IntVar(&pollIntervalSec, pFlag, pDefault, pUsage)
 	flag.IntVar(&reportIntervalSec, rFlag, rDefault, rUsage)
 	flag.Parse()
+
+	var envs agent.Envs
+	err := envs.Load()
+	if err != nil {
+		log.Err(err).Msg("main: env load error")
+	}
+
+	if envs.Address != "" {
+		endpoint = envs.Address
+	}
+	if envs.PollInterval != 0 {
+		pollIntervalSec = envs.PollInterval
+	}
+	if envs.ReportInterval != 0 {
+		reportIntervalSec = envs.ReportInterval
+	}
 
 	baseURL = fmt.Sprintf("http://%s/%s", endpoint, method)
 
