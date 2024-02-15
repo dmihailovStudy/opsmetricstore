@@ -3,47 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
 	"github.com/fatih/structs"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"time"
 )
-
-var runtimeMetrics = []string{
-	"Alloc",
-	"BuckHashSys",
-	"Frees",
-	"GCCPUFraction",
-	"GCSys",
-	"HeapAlloc",
-	"HeapIdle",
-	"HeapInuse",
-	"HeapObjects",
-	"HeapReleased",
-	"HeapSys",
-	"LastGC",
-	"Lookups",
-	"MCacheInuse",
-	"MCacheSys",
-	"MSpanInuse",
-	"MSpanSys",
-	"Mallocs",
-	"NextGC",
-	"NumForcedGC",
-	"NumGC",
-	"OtherSys",
-	"PauseTotalNs",
-	"StackInuse",
-	"StackSys",
-	"Sys",
-	"TotalAlloc",
-}
-
-const pollCountMetric = "PollCount"
-const randomValueMetric = "RandomValue"
-
-var userMetrics = []string{pollCountMetric, randomValueMetric}
 
 type UserStats struct {
 	PollCount   int64
@@ -79,8 +45,8 @@ func main() {
 			mapRuntimeStats := structs.Map(runtimeStats)
 			mapUserStats := structs.Map(userStats)
 			fmt.Println("New reporting: ", reportTime, userStats.PollCount)
-			sendMetrics(runtimeMetrics, mapRuntimeStats)
-			sendMetrics(userMetrics, mapUserStats)
+			sendMetrics(metrics.RuntimeMetrics, mapRuntimeStats)
+			sendMetrics(metrics.UserMetrics, mapUserStats)
 		}
 	}
 }
@@ -88,7 +54,7 @@ func main() {
 func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []string {
 	var responsesStatus []string
 	for _, metric := range metricsArr {
-		metricType := getMetricType(metric)
+		metricType := metrics.GetMetricType(metric)
 		path := fmt.Sprintf("%s/%s/%s/%v", baseURL, metricType, metric, metricsMap[metric])
 		body := bytes.NewBuffer([]byte{})
 		resp, err := http.Post(path, "text/plain", body)
@@ -103,11 +69,4 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 		responsesStatus = append(responsesStatus, resp.Status)
 	}
 	return responsesStatus
-}
-
-func getMetricType(metric string) string {
-	if metric == pollCountMetric {
-		return "counter"
-	}
-	return "gauge"
 }

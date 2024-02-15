@@ -32,3 +32,10 @@ func CheckTypeAndValueCorrectness(metricType, metricValueStr string) bool {
 
 	return true
 }
+
+func GetMetricType(metric string) string {
+	if metric == PollCountMetric {
+		return "counter"
+	}
+	return "gauge"
+}
