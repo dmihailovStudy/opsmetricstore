@@ -5,8 +5,13 @@ import "html/template"
 var MetricsTemplate = template.Must(template.New("metrics").Parse(`
 <html> 
 <head> 
-    <title>metrics</title>
-	<body>{{.metrics}}</title>
-</body>
+    <title>Metrics</title>
+	<body>
+	<h1>Metrics</h1>
+	<h2>Gauge</h2>
+	<div>{{.gaugeBody}}</div>
+	<h2>Counter</h2>
+	<div>{{.counterBody}}</div>
+	</body>
 </html>
 `))

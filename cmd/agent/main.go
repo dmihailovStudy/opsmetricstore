@@ -19,38 +19,22 @@ type UserStats struct {
 	RandomValue float64
 }
 
-// flag: "-a localhost:8080"
-var endpoint string
-
-const aFlag = "a"
-const aDefault = "localhost:8080"
-const aUsage = "specify the url"
-
-// flag: "-p 2"
-var pollIntervalSec int
-
-const pFlag = "p"
-const pDefault = 2
-const pUsage = "update metrics interval"
-
-// flag: "-r 10"
-var reportIntervalSec int
-
-const rFlag = "r"
-const rDefault = 10
-const rUsage = "send metrics interval"
-
 const method = "update"
 
 var baseURL string
+var endpoint string
+var pollIntervalSec int
+var reportIntervalSec int
 
 func main() {
-	flag.StringVar(&endpoint, aFlag, aDefault, aUsage)
-	flag.IntVar(&pollIntervalSec, pFlag, pDefault, pUsage)
-	flag.IntVar(&reportIntervalSec, rFlag, rDefault, rUsage)
+	var envs agent.Envs
+	var runtimeStats runtime.MemStats
+
+	flag.StringVar(&endpoint, agent.AFlag, agent.ADefault, agent.AUsage)
+	flag.IntVar(&pollIntervalSec, agent.PFlag, agent.PDefault, agent.PUsage)
+	flag.IntVar(&reportIntervalSec, agent.RFlag, agent.RDefault, agent.RUsage)
 	flag.Parse()
 
-	var envs agent.Envs
 	err := envs.Load()
 	if err != nil {
 		log.Err(err).Msg("main: env load error")
@@ -68,16 +52,15 @@ func main() {
 
 	baseURL = fmt.Sprintf("http://%s/%s", endpoint, method)
 
-	poolTicker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
+	pollTicker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(reportIntervalSec) * time.Second)
-	defer poolTicker.Stop()
+	defer pollTicker.Stop()
+	defer reportTicker.Stop()
 
-	var runtimeStats runtime.MemStats
 	userStats := UserStats{0, rand.Float64()}
-
 	for {
 		select {
-		case pollTime := <-poolTicker.C:
+		case pollTime := <-pollTicker.C:
 			fmt.Println("New pooling: ", pollTime)
 			runtime.ReadMemStats(&runtimeStats)
 			userStats.PollCount = userStats.PollCount + 1
