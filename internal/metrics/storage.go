@@ -41,11 +41,11 @@ func GetMetricValueString(storage Storage, metricType, metricName string) (bool,
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
 		metricValueInt, isTracking = storage.Counter[metricName]
-		metricValueString = strconv.FormatInt(metricValueInt, 16)
+		metricValueString = strconv.FormatInt(metricValueInt, CounterBase)
 		err = nil
 	} else if metricType == GaugeType {
 		metricValueFloat, isTracking = storage.Gauge[metricName]
-		metricValueString = strconv.FormatFloat(metricValueFloat, 'f', 2, 64)
+		metricValueString = strconv.FormatFloat(metricValueFloat, 'f', 2, GaugeBitSize)
 		err = nil
 	}
 	return isTracking, metricValueString, err
