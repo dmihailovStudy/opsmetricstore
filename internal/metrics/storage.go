@@ -1,6 +1,9 @@
 package metrics
 
-import "strconv"
+import (
+	"github.com/pkg/errors"
+	"strconv"
+)
 
 type Storage struct {
 	Gauge   map[string]float64
@@ -30,20 +33,22 @@ func GetMetricType(metric string) string {
 	return "gauge"
 }
 
-func GetMetricValueString(storage Storage, metricType, metricName string) (bool, error, string) {
+func GetMetricValueString(storage Storage, metricType, metricName string) (bool, string, error) {
 	metricValueString := ""
+	isTracking := false
+	err := errors.New("GetMetricValueString: unknown metric name")
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
-	isTracking := false
 	if metricType == CounterType {
 		metricValueInt, isTracking = storage.Counter[metricName]
 		metricValueString = strconv.FormatInt(metricValueInt, 16)
+		err = nil
 	} else if metricType == GaugeType {
 		metricValueFloat, isTracking = storage.Gauge[metricName]
 		metricValueString = strconv.FormatFloat(metricValueFloat, 'f', 2, 64)
+		err = nil
 	}
-
-	return isTracking, nil, metricValueString
+	return isTracking, metricValueString, err
 }
 
 func GetMetricValueInt64(metricValueStr string) (int64, error) {

@@ -54,7 +54,7 @@ func MetricHandler(c *gin.Context) {
 	metricType := c.Param("metricType")
 	metricName := c.Param("metricName")
 
-	isTracking, err, metricValueStr := metrics.GetMetricValueString(memStorage, metricType, metricName)
+	isTracking, metricValueStr, err := metrics.GetMetricValueString(memStorage, metricType, metricName)
 	if err != nil {
 		log.Error().
 			Err(err).
