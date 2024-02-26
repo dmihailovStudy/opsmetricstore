@@ -63,7 +63,7 @@ func main() {
 		case pollTime := <-pollTicker.C:
 			log.Info().
 				Str("pollTime", pollTime.String()).
-				Msg("New pooling")
+				Msg("New polling")
 			runtime.ReadMemStats(&runtimeStats)
 			userStats.PollCount = userStats.PollCount + 1
 			userStats.RandomValue = rand.Float64()
