@@ -20,6 +20,7 @@ const CounterBitSize = 64
 
 const GaugeType = "gauge"
 const GaugeBitSize = 64
+const GaugePrecision = 10
 
 func InitStorage(storage *Storage) {
 	storage.Counter = make(map[string]int64)
@@ -45,7 +46,7 @@ func GetMetricValueString(storage Storage, metricType, metricName string) (bool,
 		err = nil
 	} else if metricType == GaugeType {
 		metricValueFloat, isTracking = storage.Gauge[metricName]
-		metricValueString = strconv.FormatFloat(metricValueFloat, 'f', 2, GaugeBitSize)
+		metricValueString = strconv.FormatFloat(metricValueFloat, 'f', GaugePrecision, GaugeBitSize)
 		err = nil
 	}
 	return isTracking, metricValueString, err
