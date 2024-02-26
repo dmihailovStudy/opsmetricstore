@@ -61,7 +61,9 @@ func main() {
 	for {
 		select {
 		case pollTime := <-pollTicker.C:
-			fmt.Println("New pooling: ", pollTime)
+			log.Info().
+				Str("pollTime", pollTime.String()).
+				Msg("New pooling")
 			runtime.ReadMemStats(&runtimeStats)
 			userStats.PollCount = userStats.PollCount + 1
 			userStats.RandomValue = rand.Float64()
@@ -69,7 +71,10 @@ func main() {
 		case reportTime := <-reportTicker.C:
 			mapRuntimeStats := structs.Map(runtimeStats)
 			mapUserStats := structs.Map(userStats)
-			fmt.Println("New reporting: ", reportTime, userStats.PollCount)
+			log.Info().
+				Str("reportTime", reportTime.String()).
+				Int64("pollCount", userStats.PollCount).
+				Msg("New reporting")
 			sendMetrics(metrics.RuntimeMetrics, mapRuntimeStats)
 			sendMetrics(metrics.UserMetrics, mapUserStats)
 		}
@@ -85,11 +90,17 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 		resp, err := http.Post(path, "text/plain", body)
 		if err != nil {
 			strErr := fmt.Sprint(err)
-			fmt.Printf("%s, err: %s", path, strErr)
+			log.Error().
+				Err(err).
+				Str("path", path).
+				Msg("sendMetrics: post error")
 			responsesStatus = append(responsesStatus, strErr)
 			continue
 		}
-		fmt.Printf("%s, status: %s\n", path, resp.Status)
+		log.Info().
+			Str("path", path).
+			Str("status", resp.Status).
+			Msg("sendMetrics: post ok")
 		responsesStatus = append(responsesStatus, resp.Status)
 		defer resp.Body.Close()
 	}

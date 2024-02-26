@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"testing"
 )
 
@@ -45,12 +46,20 @@ func TestSendMetrics(t *testing.T) {
 
 	for i, testCase := range sendMetricTestCases {
 		metricResponses := sendMetrics(testCase.input.metricsArr, testCase.input.metricsMap)
+		testNum := i + 1
 		for j, metricResponse := range metricResponses {
 			if metricResponse != testCase.output[j] {
-				fmt.Printf("Test #%v failed - got: %s, want %s\n", i+1, metricResponse, testCase.output[j])
+				errLogHeader := fmt.Sprintf(
+					"Test #%v failed - got: %s, want %s\n",
+					testNum,
+					metricResponse,
+					testCase.output[j],
+				)
+				log.Error().Msg(errLogHeader)
 				t.FailNow()
 			}
 		}
-		fmt.Printf("Test #%v (%s)\n", i+1, testCase.name)
+		okLogHeader := fmt.Sprintf("Test #%v (%s)\n", i+1, testCase.name)
+		log.Error().Msg(okLogHeader)
 	}
 }

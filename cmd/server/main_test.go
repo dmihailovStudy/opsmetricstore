@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
 	"testing"
@@ -61,10 +62,19 @@ func TestCheckMetricCorrectness(t *testing.T) {
 		metricValue := metricData[3] // metricValue in string format
 
 		code := metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, &memStorage)
+		testNum := i + 1
 		if code != testCase.output {
-			fmt.Printf("Test #%v (%s): failed - got: %v, want %v\n", i+1, testCase.name, code, testCase.output)
+			errLogHeader := fmt.Sprintf(
+				"Test #%v (%s): failed - got: %v, want %v",
+				testNum,
+				testCase.name,
+				code,
+				testCase.output,
+			)
+			log.Error().Msg(errLogHeader)
 			t.FailNow()
 		}
-		fmt.Printf("Test #%v (%s): completed!\n", i+1, testCase.name)
+		okLogHeader := fmt.Sprintf("Test #%v (%s): completed!\n", testNum, testCase.name)
+		log.Info().Msg(okLogHeader)
 	}
 }
