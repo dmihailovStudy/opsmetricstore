@@ -15,8 +15,7 @@ type SendMetricTestCase struct {
 }
 
 func TestCheckMetricCorrectness(t *testing.T) {
-	var memStorage metrics.Storage
-	metrics.InitStorage(&memStorage)
+	memStorage := metrics.CreateDefaultStorage()
 
 	// Test #1: Ok case
 	okTestName := "Ok case"
@@ -61,7 +60,7 @@ func TestCheckMetricCorrectness(t *testing.T) {
 		metricName := metricData[2]  // metricName to update
 		metricValue := metricData[3] // metricValue in string format
 
-		code := CheckUpdateMetricCorrectness(&memStorage, metricType, metricName, metricValue)
+		code := metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, &memStorage)
 		if code != testCase.output {
 			fmt.Printf("Test #%v (%s): failed - got: %v, want %v\n", i+1, testCase.name, code, testCase.output)
 			t.FailNow()

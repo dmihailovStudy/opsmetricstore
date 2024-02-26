@@ -3,6 +3,8 @@ package metrics
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"net/http"
 	"strconv"
 )
 
@@ -22,9 +24,11 @@ const CounterBitSize = 64
 const GaugeType = "gauge"
 const GaugeBitSize = 64
 
-func InitStorage(storage *Storage) {
+func CreateDefaultStorage() Storage {
+	var storage Storage
 	storage.Counter = make(map[string]int64)
 	storage.Gauge = make(map[string]float64)
+	return storage
 }
 
 func GetMetricType(metric string) string {
@@ -34,7 +38,7 @@ func GetMetricType(metric string) string {
 	return "gauge"
 }
 
-func GetMetricValueString(storage Storage, metricType, metricName string) (bool, string, error) {
+func GetMetricValueString(metricType, metricName string, storage *Storage) (bool, string, error) {
 	metricValueString := ""
 	isTracking := false
 	err := errors.New("GetMetricValueString: unknown metric name")
@@ -60,4 +64,40 @@ func GetMetricValueInt64(metricValueStr string) (int64, error) {
 func GetMetricValueFloat64(metricValueStr string) (float64, error) {
 	metricValue, err := strconv.ParseFloat(metricValueStr, GaugeBitSize)
 	return metricValue, err
+}
+
+func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string, storage *Storage) int {
+	if metricType == CounterType {
+		metricValueInt64, err := GetMetricValueInt64(metricValueStr)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("metricValueStr", metricValueStr).
+				Int("counterBase", CounterBase).
+				Int("counterBitSize", CounterBitSize).
+				Msg("GetMetricValueInt64: failed to convert metricValueStr")
+			return http.StatusBadRequest
+		}
+		_, isTracking := storage.Counter[metricName]
+		if !isTracking {
+			storage.Counter[metricName] = metricValueInt64
+		} else {
+			storage.Counter[metricName] += metricValueInt64
+		}
+	} else if metricType == GaugeType {
+		metricValueFloat64, err := GetMetricValueFloat64(metricValueStr)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("metricValueStr", metricValueStr).
+				Int("gaugeBitSize", GaugeBitSize).
+				Msg("GetMetricValueFloat64: failed to convert metricValueStr")
+			return http.StatusBadRequest
+		}
+		storage.Gauge[metricName] = metricValueFloat64
+	} else {
+		// bad metric type
+		return http.StatusBadRequest
+	}
+	return http.StatusOK
 }

@@ -89,9 +89,9 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			responsesStatus = append(responsesStatus, strErr)
 			continue
 		}
-		defer resp.Body.Close()
 		fmt.Printf("%s, status: %s\n", path, resp.Status)
 		responsesStatus = append(responsesStatus, resp.Status)
+		defer resp.Body.Close()
 	}
 	return responsesStatus
 }
