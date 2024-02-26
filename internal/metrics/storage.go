@@ -9,25 +9,25 @@ import (
 )
 
 type Storage struct {
-	Gauge   map[string]float64
-	Counter map[string]int64
+	Gauges   map[string]float64
+	Counters map[string]int64
 }
 
-// Counter adds new value to previous
+// Counters adds new value to previous
 
 const CounterType = "counter"
 const CounterBase = 10
 const CounterBitSize = 64
 
-// Gauge replaces previous value
+// Gauges replaces previous value
 
 const GaugeType = "gauge"
 const GaugeBitSize = 64
 
 func CreateDefaultStorage() Storage {
 	var storage Storage
-	storage.Counter = make(map[string]int64)
-	storage.Gauge = make(map[string]float64)
+	storage.Counters = make(map[string]int64)
+	storage.Gauges = make(map[string]float64)
 	return storage
 }
 
@@ -45,11 +45,11 @@ func GetMetricValueString(metricType, metricName string, storage *Storage) (bool
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
-		metricValueInt, isTracking = storage.Counter[metricName]
+		metricValueInt, isTracking = storage.Counters[metricName]
 		metricValueString = fmt.Sprint(metricValueInt)
 		err = nil
 	} else if metricType == GaugeType {
-		metricValueFloat, isTracking = storage.Gauge[metricName]
+		metricValueFloat, isTracking = storage.Gauges[metricName]
 		metricValueString = fmt.Sprint(metricValueFloat)
 		err = nil
 	}
@@ -78,11 +78,11 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 				Msg("GetMetricValueInt64: failed to convert metricValueStr")
 			return http.StatusBadRequest
 		}
-		_, isTracking := storage.Counter[metricName]
+		_, isTracking := storage.Counters[metricName]
 		if !isTracking {
-			storage.Counter[metricName] = metricValueInt64
+			storage.Counters[metricName] = metricValueInt64
 		} else {
-			storage.Counter[metricName] += metricValueInt64
+			storage.Counters[metricName] += metricValueInt64
 		}
 	} else if metricType == GaugeType {
 		metricValueFloat64, err := GetMetricValueFloat64(metricValueStr)
@@ -94,7 +94,7 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 				Msg("GetMetricValueFloat64: failed to convert metricValueStr")
 			return http.StatusBadRequest
 		}
-		storage.Gauge[metricName] = metricValueFloat64
+		storage.Gauges[metricName] = metricValueFloat64
 	} else {
 		// bad metric type
 		return http.StatusBadRequest

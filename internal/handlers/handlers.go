@@ -13,8 +13,8 @@ func MainMiddleware(storage *metrics.Storage) gin.HandlerFunc {
 
 func MainHandler(c *gin.Context, storage *metrics.Storage) {
 	c.HTML(http.StatusOK, "metrics", gin.H{
-		"gaugeBody":   storage.Gauge,
-		"counterBody": storage.Counter,
+		"gaugeBody":   storage.Gauges,
+		"counterBody": storage.Counters,
 	})
 }
 
