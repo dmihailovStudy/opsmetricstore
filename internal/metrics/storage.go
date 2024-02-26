@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"strconv"
 )
@@ -20,7 +21,6 @@ const CounterBitSize = 64
 
 const GaugeType = "gauge"
 const GaugeBitSize = 64
-const GaugePrecision = 10
 
 func InitStorage(storage *Storage) {
 	storage.Counter = make(map[string]int64)
@@ -42,11 +42,11 @@ func GetMetricValueString(storage Storage, metricType, metricName string) (bool,
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
 		metricValueInt, isTracking = storage.Counter[metricName]
-		metricValueString = strconv.FormatInt(metricValueInt, CounterBase)
+		metricValueString = fmt.Sprint(metricValueInt)
 		err = nil
 	} else if metricType == GaugeType {
 		metricValueFloat, isTracking = storage.Gauge[metricName]
-		metricValueString = strconv.FormatFloat(metricValueFloat, 'f', GaugePrecision, GaugeBitSize)
+		metricValueString = fmt.Sprint(metricValueFloat)
 		err = nil
 	}
 	return isTracking, metricValueString, err
