@@ -5,10 +5,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"time"
 )
 
 func MainMiddleware(storage *metrics.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) { MainHandler(c, storage) }
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		MainHandler(c, storage)
+		logQueryParams(c, startTime)
+	}
 }
 
 func MainHandler(c *gin.Context, storage *metrics.Storage) {
@@ -19,7 +24,11 @@ func MainHandler(c *gin.Context, storage *metrics.Storage) {
 }
 
 func MetricMiddleware(storage *metrics.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) { MetricHandler(c, storage) }
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		MetricHandler(c, storage)
+		logQueryParams(c, startTime)
+	}
 }
 
 func MetricHandler(c *gin.Context, storage *metrics.Storage) {
@@ -58,7 +67,11 @@ func MetricHandler(c *gin.Context, storage *metrics.Storage) {
 }
 
 func UpdateMiddleware(storage *metrics.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) { UpdateHandler(c, storage) }
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		UpdateHandler(c, storage)
+		logQueryParams(c, startTime)
+	}
 }
 
 func UpdateHandler(c *gin.Context, storage *metrics.Storage) {
@@ -68,4 +81,14 @@ func UpdateHandler(c *gin.Context, storage *metrics.Storage) {
 
 	responseCode := metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, storage)
 	c.Writer.WriteHeader(responseCode)
+}
+
+func logQueryParams(c *gin.Context, startTime time.Time) {
+	uri := c.Request.RequestURI
+	method := c.Request.Method
+	log.Info().
+		Str("uri", uri).
+		Str("method", method).
+		Dur("execTime", time.Since(startTime)).
+		Msg("logQueryParams(): req stats")
 }
