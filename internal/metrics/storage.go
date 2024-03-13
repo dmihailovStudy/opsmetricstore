@@ -38,10 +38,10 @@ func GetMetricType(metric string) string {
 	return "gauge"
 }
 
-func GetMetricValueString(metricType, metricName string, storage *Storage) (bool, string, error) {
+func GetMetricValue(metricType, metricName string, storage *Storage) (bool, string, int64, float64, error) {
 	metricValueString := ""
 	isTracking := false
-	err := errors.New("GetMetricValueString: unknown metric name")
+	err := errors.New("GetMetricValue: unknown metric name")
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
@@ -53,7 +53,7 @@ func GetMetricValueString(metricType, metricName string, storage *Storage) (bool
 		metricValueString = fmt.Sprint(metricValueFloat)
 		err = nil
 	}
-	return isTracking, metricValueString, err
+	return isTracking, metricValueString, metricValueInt, metricValueFloat, err
 }
 
 func GetMetricValueInt64(metricValueStr string) (int64, error) {
