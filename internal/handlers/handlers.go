@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/dmihailovStudy/opsmetricstore/internal/logging"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/dmihailovStudy/opsmetricstore/internal/objects/get"
 	"github.com/dmihailovStudy/opsmetricstore/internal/objects/update"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -31,28 +32,108 @@ func MainHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWrit
 	return lrw
 }
 
-func MetricMiddleware(storage *metrics.Storage) gin.HandlerFunc {
+func GetMetricByJSONMiddleware(storage *metrics.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
-		lrw := MetricHandler(c, storage)
+		lrw := GetMetricByJSONHandler(c, storage)
 		lrw.LogQueryParams(c, startTime)
 	}
 }
 
-func MetricHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+func GetMetricByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+	ginWriter := c.Writer
+	loggingWriter := logging.NewResponseWriter(ginWriter)
+
+	var requestObject get.MetricRequestObj
+	jsonData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("UpdateByJSONHandler(): io.ReadAll err")
+	}
+
+	err = json.Unmarshal(jsonData, &requestObject)
+	if err != nil {
+		log.Error().Err(err).Msg("UpdateByJSONHandler(): io.ReadAll err")
+	}
+
+	metricType := requestObject.MType
+	metricName := requestObject.ID
+
+	isTracking, metricValueStr, metricValueInt, metricValueFloat, err :=
+		metrics.GetMetricValue(metricType, metricName, storage)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("metricType", metricType).
+			Str("metricName", metricType).
+			Msg("Error: get metric get string")
+	}
+
+	log.Info().
+		Bool("isTracking:", isTracking).
+		Str("metricName", metricName).
+		Str("metricType", metricType).
+		Msg("New get metric request")
+
+	if !isTracking {
+		loggingWriter.WriteHeader(http.StatusNotFound)
+		return loggingWriter
+	}
+
+	var responseObject get.MetricResponseObj
+	responseObject.ID = requestObject.ID
+	responseObject.MType = requestObject.MType
+	if metricType == "counter" {
+		responseObject.Delta = &metricValueInt
+	} else if metricType == "gauge" {
+		responseObject.Value = &metricValueFloat
+	}
+
+	body, err := json.Marshal(responseObject)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("metricName", metricName).
+			Str("metricType", metricType).
+			Str("metricValueStr", metricValueStr).
+			Msg("Error: while marshal response")
+	}
+
+	_, err = loggingWriter.Write(body)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("metricName", metricName).
+			Str("metricType", metricType).
+			Str("metricValueStr", metricValueStr).
+			Msg("Error: while sending obj")
+	}
+
+	loggingWriter.WriteHeader(http.StatusOK)
+	return loggingWriter
+}
+
+func GetMetricByURLMiddleware(storage *metrics.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := GetMetricByURLHandler(c, storage)
+		lrw.LogQueryParams(c, startTime)
+	}
+}
+
+func GetMetricByURLHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
 	ginWriter := c.Writer
 	loggingWriter := logging.NewResponseWriter(ginWriter)
 
 	metricType := c.Param("metricType")
 	metricName := c.Param("metricName")
 
-	isTracking, metricValueStr, err := metrics.GetMetricValueString(metricType, metricName, storage)
+	isTracking, metricValueStr, _, _, err := metrics.GetMetricValue(metricType, metricName, storage)
 	if err != nil {
 		log.Error().
 			Err(err).
 			Str("metricType", metricType).
 			Str("metricName", metricType).
-			Msg("Error: get metric value string")
+			Msg("Error: get metric get string")
 	}
 
 	log.Info().
@@ -124,15 +205,15 @@ func UpdateByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.Resp
 	return lrw
 }
 
-func UpdateByUrlMiddleware(storage *metrics.Storage) gin.HandlerFunc {
+func UpdateByURLMiddleware(storage *metrics.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
-		lrw := UpdateByUrlHandler(c, storage)
+		lrw := UpdateByURLHandler(c, storage)
 		lrw.LogQueryParams(c, startTime)
 	}
 }
 
-func UpdateByUrlHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+func UpdateByURLHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
 	ginWriter := c.Writer
 	lrw := logging.NewResponseWriter(ginWriter)
 	metricType := c.Param("metricType")

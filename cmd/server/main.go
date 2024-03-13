@@ -35,8 +35,9 @@ func main() {
 
 	router.SetHTMLTemplate(html.MetricsTemplate)
 	router.GET(server.MainPath, handlers.MainMiddleware(&memStorage))
-	router.GET(server.MetricPath, handlers.MetricMiddleware(&memStorage))
-	router.POST(server.UpdateByURLPath, handlers.UpdateByUrlMiddleware(&memStorage))
+	router.GET(server.GetMetricByURLPath, handlers.GetMetricByURLMiddleware(&memStorage))
+	router.POST(server.GetMetricByJSONPath, handlers.GetMetricByJSONMiddleware(&memStorage))
+	router.POST(server.UpdateByURLPath, handlers.UpdateByURLMiddleware(&memStorage))
 	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
 
 	err = router.Run(endpoint)
