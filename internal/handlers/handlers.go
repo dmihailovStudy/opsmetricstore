@@ -1,28 +1,45 @@
 package handlers
 
 import (
+	"github.com/dmihailovStudy/opsmetricstore/internal/logging"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"time"
 )
 
 func MainMiddleware(storage *metrics.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) { MainHandler(c, storage) }
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := MainHandler(c, storage)
+		lrw.LogQueryParams(c, startTime)
+	}
 }
 
-func MainHandler(c *gin.Context, storage *metrics.Storage) {
+func MainHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
 	c.HTML(http.StatusOK, "metrics", gin.H{
 		"gaugeBody":   storage.Gauges,
 		"counterBody": storage.Counters,
 	})
+
+	ginWriter := c.Writer
+	lrw := logging.NewResponseWriter(ginWriter)
+	return lrw
 }
 
 func MetricMiddleware(storage *metrics.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) { MetricHandler(c, storage) }
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := MetricHandler(c, storage)
+		lrw.LogQueryParams(c, startTime)
+	}
 }
 
-func MetricHandler(c *gin.Context, storage *metrics.Storage) {
+func MetricHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+	ginWriter := c.Writer
+	loggingWriter := logging.NewResponseWriter(ginWriter)
+
 	metricType := c.Param("metricType")
 	metricName := c.Param("metricName")
 
@@ -42,11 +59,11 @@ func MetricHandler(c *gin.Context, storage *metrics.Storage) {
 		Msg("New get metric request")
 
 	if !isTracking {
-		c.Writer.WriteHeader(http.StatusNotFound)
-		return
+		loggingWriter.WriteHeader(http.StatusNotFound)
+		return loggingWriter
 	}
 
-	intCode, err := c.Writer.WriteString(metricValueStr)
+	intCode, err := loggingWriter.WriteString(metricValueStr)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -54,18 +71,27 @@ func MetricHandler(c *gin.Context, storage *metrics.Storage) {
 			Int("intCode", intCode).
 			Msg("Error: while sending string")
 	}
-	c.Writer.WriteHeader(http.StatusOK)
+
+	loggingWriter.WriteHeader(http.StatusOK)
+	return loggingWriter
 }
 
 func UpdateMiddleware(storage *metrics.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) { UpdateHandler(c, storage) }
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := UpdateHandler(c, storage)
+		lrw.LogQueryParams(c, startTime)
+	}
 }
 
-func UpdateHandler(c *gin.Context, storage *metrics.Storage) {
+func UpdateHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+	ginWriter := c.Writer
+	lrw := logging.NewResponseWriter(ginWriter)
 	metricType := c.Param("metricType")
 	metricName := c.Param("metricName")
 	metricValue := c.Param("metricValue")
 
 	responseCode := metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, storage)
-	c.Writer.WriteHeader(responseCode)
+	lrw.WriteHeader(responseCode)
+	return lrw
 }
