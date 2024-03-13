@@ -98,6 +98,7 @@ func GetMetricByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.R
 			Msg("Error: while marshal response")
 	}
 
+	loggingWriter.Header().Set("Content-Type", "application/json")
 	_, err = loggingWriter.Write(body)
 	if err != nil {
 		log.Error().
