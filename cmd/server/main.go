@@ -36,7 +36,8 @@ func main() {
 	router.SetHTMLTemplate(html.MetricsTemplate)
 	router.GET(server.MainPath, handlers.MainMiddleware(&memStorage))
 	router.GET(server.MetricPath, handlers.MetricMiddleware(&memStorage))
-	router.POST(server.UpdatePath, handlers.UpdateMiddleware(&memStorage))
+	router.POST(server.UpdateByURLPath, handlers.UpdateByUrlMiddleware(&memStorage))
+	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
 
 	err = router.Run(endpoint)
 	if err != nil {

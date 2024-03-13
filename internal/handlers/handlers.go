@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"encoding/json"
 	"github.com/dmihailovStudy/opsmetricstore/internal/logging"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/dmihailovStudy/opsmetricstore/internal/objects/update"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"io"
 	"net/http"
 	"time"
 )
@@ -76,15 +79,60 @@ func MetricHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWr
 	return loggingWriter
 }
 
-func UpdateMiddleware(storage *metrics.Storage) gin.HandlerFunc {
+func UpdateByJSONMiddleware(storage *metrics.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
-		lrw := UpdateHandler(c, storage)
+		lrw := UpdateByJSONHandler(c, storage)
 		lrw.LogQueryParams(c, startTime)
 	}
 }
 
-func UpdateHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+func UpdateByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
+	ginWriter := c.Writer
+	lrw := logging.NewResponseWriter(ginWriter)
+
+	var requestObject update.MetricRequestObj
+	jsonData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("UpdateByJSONHandler(): io.ReadAll err")
+	}
+
+	err = json.Unmarshal(jsonData, &requestObject)
+	if err != nil {
+		log.Error().Err(err).Msg("UpdateByJSONHandler(): io.ReadAll err")
+	}
+
+	metricType := requestObject.MType
+	metricName := requestObject.ID
+	metricDelta := requestObject.Delta
+	metricValue := requestObject.Value
+	var responseCode int
+	if metricType == "gauge" {
+		responseCode = metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, storage)
+	} else if metricType == "counter" {
+		responseCode = metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricDelta, storage)
+	} else {
+		_, err = lrw.WriteString("Unknown metric type")
+		if err != nil {
+			log.Error().Err(err).Msg("UpdateByJSONHandler(): WriteString err")
+		}
+		lrw.WriteHeader(http.StatusNotFound)
+		return lrw
+	}
+
+	lrw.WriteHeader(responseCode)
+	return lrw
+}
+
+func UpdateByUrlMiddleware(storage *metrics.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := UpdateByUrlHandler(c, storage)
+		lrw.LogQueryParams(c, startTime)
+	}
+}
+
+func UpdateByUrlHandler(c *gin.Context, storage *metrics.Storage) *logging.ResponseWriter {
 	ginWriter := c.Writer
 	lrw := logging.NewResponseWriter(ginWriter)
 	metricType := c.Param("metricType")

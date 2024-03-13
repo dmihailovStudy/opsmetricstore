@@ -8,4 +8,5 @@ const AUsage = "specify the url"
 // routing paths
 const MainPath = "/"
 const MetricPath = "/value/:metricType/:metricName"
-const UpdatePath = "/update/:metricType/:metricName/:metricValue"
+const UpdateByURLPath = "/update/:metricType/:metricName/:metricValue"
+const UpdateByJSONPath = "/update"

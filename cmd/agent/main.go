@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/agent"
 	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/dmihailovStudy/opsmetricstore/internal/objects/update"
 	"github.com/fatih/structs"
 	"github.com/rs/zerolog/log"
 	"math/rand"
@@ -85,20 +87,35 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 	var responsesStatus []string
 	for _, metric := range metricsArr {
 		metricType := metrics.GetMetricType(metric)
-		path := fmt.Sprintf("%s/%s/%s/%v", baseURL, metricType, metric, metricsMap[metric])
-		body := bytes.NewBuffer([]byte{})
-		resp, err := http.Post(path, "text/plain", body)
+		object := update.MetricRequestObj{
+			ID:    metric,
+			MType: metricType,
+		}
+
+		if metricType == "counter" {
+			object.Delta = fmt.Sprintf("%v", metricsMap[metric])
+		} else {
+			object.Value = fmt.Sprintf("%v", metricsMap[metric])
+		}
+
+		objectBytes, err := json.Marshal(object)
+		if err != nil {
+			log.Err(err).Msg("newConfig: can't marshal new config")
+		}
+		body := bytes.NewBuffer(objectBytes)
+
+		resp, err := http.Post(baseURL, "text/plain", body)
 		if err != nil {
 			strErr := fmt.Sprint(err)
 			log.Error().
 				Err(err).
-				Str("path", path).
+				Str("path", baseURL).
 				Msg("sendMetrics: post error")
 			responsesStatus = append(responsesStatus, strErr)
 			continue
 		}
 		log.Info().
-			Str("path", path).
+			Str("path", baseURL).
 			Str("status", resp.Status).
 			Msg("sendMetrics: post ok")
 		responsesStatus = append(responsesStatus, resp.Status)
