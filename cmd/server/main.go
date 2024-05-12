@@ -4,7 +4,7 @@ import (
 	"flag"
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
-	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// create empty storage
-	memStorage := metrics.CreateDefaultStorage()
+	memStorage := storage.CreateDefaultStorage()
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)

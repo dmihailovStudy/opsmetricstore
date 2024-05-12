@@ -2,7 +2,7 @@ package html
 
 import "html/template"
 
-var MetricsTemplate = template.Must(template.New("metrics").Parse(`
+var MetricsTemplate = template.Must(template.New("storage").Parse(`
 <html> 
 <head> 
     <title>Metrics</title>

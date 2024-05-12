@@ -1,4 +1,4 @@
-package metrics
+package storage
 
 var RuntimeMetrics = []string{
 	"Alloc",

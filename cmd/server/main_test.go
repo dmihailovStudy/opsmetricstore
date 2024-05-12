@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
@@ -16,7 +16,7 @@ type SendMetricTestCase struct {
 }
 
 func TestCheckMetricCorrectness(t *testing.T) {
-	memStorage := metrics.CreateDefaultStorage()
+	memStorage := storage.CreateDefaultStorage()
 
 	// Test #1: Ok case
 	okTestName := "Ok case"
@@ -61,7 +61,7 @@ func TestCheckMetricCorrectness(t *testing.T) {
 		metricName := metricData[2]  // metricName to update
 		metricValue := metricData[3] // metricValue in string format
 
-		code := metrics.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, &memStorage)
+		code := storage.CheckUpdateMetricCorrectness(metricType, metricName, metricValue, &memStorage)
 		testNum := i + 1
 		if code != testCase.output {
 			errLogHeader := fmt.Sprintf(

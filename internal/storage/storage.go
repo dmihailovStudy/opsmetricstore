@@ -1,4 +1,4 @@
-package metrics
+package storage
 
 import (
 	"fmt"
@@ -100,4 +100,17 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 		return http.StatusBadRequest
 	}
 	return http.StatusOK
+}
+
+func UpdateGaugeMetric(name string, value *float64, s *Storage) {
+	s.Gauges[name] = *value
+}
+
+func UpdateCounterMetric(name string, value *int64, s *Storage) {
+	_, isTracking := s.Counters[name]
+	if !isTracking {
+		s.Counters[name] = *value
+	} else {
+		s.Counters[name] += *value
+	}
 }

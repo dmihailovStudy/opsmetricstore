@@ -6,13 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/agent"
-	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
-	"github.com/dmihailovStudy/opsmetricstore/internal/objects/update"
+	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
+	"github.com/dmihailovStudy/opsmetricstore/transport/structure/metrics"
 	"github.com/fatih/structs"
 	"github.com/rs/zerolog/log"
 	"math/rand"
 	"net/http"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -77,8 +78,8 @@ func main() {
 				Str("reportTime", reportTime.String()).
 				Int64("pollCount", userStats.PollCount).
 				Msg("New reporting")
-			sendMetrics(metrics.RuntimeMetrics, mapRuntimeStats)
-			sendMetrics(metrics.UserMetrics, mapUserStats)
+			sendMetrics(storage.RuntimeMetrics, mapRuntimeStats)
+			sendMetrics(storage.UserMetrics, mapUserStats)
 		}
 	}
 }
@@ -86,16 +87,36 @@ func main() {
 func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []string {
 	var responsesStatus []string
 	for _, metric := range metricsArr {
-		metricType := metrics.GetMetricType(metric)
-		object := update.MetricRequestObj{
+		metricType := storage.GetMetricType(metric)
+		object := metrics.Body{
 			ID:    metric,
 			MType: metricType,
 		}
 
+		strMetric := fmt.Sprintf("%v", metricsMap[metric])
+
 		if metricType == "counter" {
-			object.Delta = fmt.Sprintf("%v", metricsMap[metric])
+			value, err := strconv.ParseInt(strMetric, 10, 64)
+			object.Delta = &value
+
+			if err != nil {
+				log.Err(err).
+					Str("name", metric).
+					Str("value", strMetric).
+					Msg("sendMetrics: can't parse counter type")
+			}
+
 		} else {
-			object.Value = fmt.Sprintf("%v", metricsMap[metric])
+			value, err := strconv.ParseFloat(strMetric, 64)
+
+			if err != nil {
+				log.Err(err).
+					Str("name", metric).
+					Str("value", strMetric).
+					Msg("sendMetrics: can't parse gauge type")
+			}
+
+			object.Value = &value
 		}
 
 		objectBytes, err := json.Marshal(object)
