@@ -39,9 +39,9 @@ func GetMetricType(metric string) string {
 }
 
 func GetMetricValue(metricType, metricName string, storage *Storage) (bool, string, int64, float64, error) {
+	err := errors.New("GetMetricValue: unknown metric type")
 	metricValueString := ""
 	isTracking := false
-	err := errors.New("GetMetricValue: unknown metric name")
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
 	if metricType == CounterType {

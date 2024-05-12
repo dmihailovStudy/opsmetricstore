@@ -60,24 +60,25 @@ func GetMetricByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.R
 
 	isTracking, metricValueStr, metricValueInt, metricValueFloat, err :=
 		metrics.GetMetricValue(metricType, metricName, storage)
+
 	if err != nil {
 		log.Error().
 			Err(err).
 			Str("metricType", metricType).
 			Str("metricName", metricType).
+			Bool("isTracking", isTracking).
 			Msg("Error: get metric get string")
 	}
 
 	log.Info().
-		Bool("isTracking:", isTracking).
 		Str("metricName", metricName).
 		Str("metricType", metricType).
 		Msg("New get metric request")
 
-	if !isTracking {
-		loggingWriter.WriteHeader(http.StatusNotFound)
-		return loggingWriter
-	}
+	//if !isTracking {
+	//	loggingWriter.WriteHeader(http.StatusNotFound)
+	//	return loggingWriter
+	//}
 
 	var responseObject get.MetricResponseObj
 	responseObject.ID = requestObject.ID
@@ -94,6 +95,7 @@ func GetMetricByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.R
 			Err(err).
 			Str("metricName", metricName).
 			Str("metricType", metricType).
+			Bool("isTracking", isTracking).
 			Str("metricValueStr", metricValueStr).
 			Msg("Error: while marshal response")
 	}
@@ -105,6 +107,7 @@ func GetMetricByJSONHandler(c *gin.Context, storage *metrics.Storage) *logging.R
 			Err(err).
 			Str("metricName", metricName).
 			Str("metricType", metricType).
+			Bool("isTracking", isTracking).
 			Str("metricValueStr", metricValueStr).
 			Msg("Error: while sending obj")
 	}
