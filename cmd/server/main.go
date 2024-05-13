@@ -5,7 +5,6 @@ import (
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
-	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"time"
@@ -28,7 +27,7 @@ func main() {
 	// read envs
 	err := envs.Load()
 	if err != nil {
-		log.Err(err).Msg("main: env load error")
+		log.Error().Err(err).Msg("main: env load error")
 	}
 
 	if envs.Address != "" {
@@ -60,7 +59,6 @@ func main() {
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
-	router.SetHTMLTemplate(html.MetricsTemplate)
 
 	router.GET(server.MainPath, handlers.MainMiddleware(&memStorage))
 	router.GET(server.GetMetricByURLPath, handlers.GetMetricByURLMiddleware(&memStorage))
@@ -70,6 +68,6 @@ func main() {
 
 	err = router.Run(endpoint)
 	if err != nil {
-		log.Err(err).Msg("main: router run error")
+		log.Error().Err(err).Msg("main(): router run error")
 	}
 }

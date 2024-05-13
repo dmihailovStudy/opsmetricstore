@@ -29,7 +29,7 @@ func MainMiddleware(s *storage.Storage) gin.HandlerFunc {
 
 func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.Storage) {
 	acceptEncoding := c.Request.Header.Get("Accept-Encoding")
-	t := template.Must(template.New("storage").Parse(html.Tmpl))
+	t := template.Must(template.New("storage").Parse(html.MetricsTemplate))
 
 	log.Info().
 		Str("acceptEncoding", acceptEncoding).
@@ -104,7 +104,7 @@ func GetMetricByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int
 	log.Info().
 		Str("metricName", metricName).
 		Str("metricType", metricType).
-		Msg("New get metric request")
+		Msg("GetMetricByJSONHandler(): new get metric request")
 
 	if !isTracking {
 		return http.StatusNotFound, []byte("GetMetricByJSONHandler(): not tracking metric")
@@ -168,7 +168,7 @@ func GetMetricByURLHandler(c *gin.Context, s *storage.Storage) (int, []byte) {
 		Bool("isTracking:", isTracking).
 		Str("metricName", metricName).
 		Str("metricType", metricType).
-		Msg("New get metric request")
+		Msg("GetMetricByURLHandler(): new get metric request")
 
 	return http.StatusOK, []byte(metricValueStr)
 }

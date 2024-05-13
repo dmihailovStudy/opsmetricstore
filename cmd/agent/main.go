@@ -42,7 +42,7 @@ func main() {
 
 	err := envs.Load()
 	if err != nil {
-		log.Err(err).Msg("main: env load error")
+		log.Err(err).Msg("main(): env load error")
 	}
 
 	if envs.Address != "" {
@@ -68,7 +68,7 @@ func main() {
 		case pollTime := <-pollTicker.C:
 			log.Info().
 				Str("pollTime", pollTime.String()).
-				Msg("New polling")
+				Msg("main(): new polling")
 			runtime.ReadMemStats(&runtimeStats)
 			userStats.PollCount = userStats.PollCount + 1
 			userStats.RandomValue = rand.Float64()
@@ -79,7 +79,7 @@ func main() {
 			log.Info().
 				Str("reportTime", reportTime.String()).
 				Int64("pollCount", userStats.PollCount).
-				Msg("New reporting")
+				Msg("main(): new reporting")
 			sendMetrics(storage.RuntimeMetrics, mapRuntimeStats)
 			sendMetrics(storage.UserMetrics, mapUserStats)
 		}
@@ -102,20 +102,19 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			object.Delta = &value
 
 			if err != nil {
-				log.Err(err).
+				log.Error().Err(err).
 					Str("name", metric).
 					Str("value", strMetric).
-					Msg("sendMetrics: can't parse counter type")
+					Msg("sendMetrics(): can't parse counter type")
 			}
 
 		} else {
 			value, err := strconv.ParseFloat(strMetric, 64)
-
 			if err != nil {
-				log.Err(err).
+				log.Error().Err(err).
 					Str("name", metric).
 					Str("value", strMetric).
-					Msg("sendMetrics: can't parse gauge type")
+					Msg("sendMetrics(): can't parse gauge type")
 			}
 
 			object.Value = &value
@@ -123,7 +122,8 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 
 		objectBytes, err := json.Marshal(object)
 		if err != nil {
-			log.Err(err).Msg("newConfig: can't marshal new config")
+			log.Error().Err(err).
+				Msg("newConfig(): can't marshal new config")
 		}
 
 		var resp *http.Response
@@ -136,7 +136,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics: gz.Write error")
+					Msg("sendMetrics(): gz.Write error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -145,7 +145,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics:  gz.Close() error")
+					Msg("sendMetrics(): gz.Close() error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -153,7 +153,10 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			// Отправка POST запроса с данными gzip на сервер
 			req, err := http.NewRequest("POST", baseURL, &buf)
 			if err != nil {
-				panic(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics(): build gzip request error")
 			}
 			req.Header.Set("Content-Encoding", "gzip")
 			req.Header.Set("Content-Type", contentType)
@@ -165,7 +168,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics: compressed response error")
+					Msg("sendMetrics(): compressed response error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -178,7 +181,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics: post error")
+					Msg("sendMetrics(): default post error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -190,7 +193,8 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			Str("status", resp.Status).
 			Str("metricName", metric).
 			Str("metricType", metricType).
-			Msg("sendMetrics: post ok")
+			Msg("sendMetrics(): post ok")
+
 		responsesStatus = append(responsesStatus, resp.Status)
 	}
 	return responsesStatus
