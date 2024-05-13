@@ -6,7 +6,10 @@ import (
 )
 
 type Envs struct {
-	Address string `env:"ADDRESS"`
+	Address       string `env:"ADDRESS"`
+	StoreInterval int    `env:"STORE_INTERVAL"`
+	Path          string `env:"FILE_STORAGE_PATH"`
+	Restore       bool   `env:"RESTORE"`
 }
 
 func (e *Envs) Load() error {

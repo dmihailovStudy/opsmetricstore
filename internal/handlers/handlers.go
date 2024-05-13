@@ -53,13 +53,6 @@ func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.S
 			Str("bytesResponse", string(bytesResponse)).
 			Msg("MainHandler(): log buffer")
 
-		//var buf2 bytes.Buffer
-		//gz, _ := gzip.NewReader(&buf2)
-		//_, _ = gz.Read(bytesResponse)
-		//log.Info().
-		//	Str("buf2", buf2.String()).
-		//	Msg("MainHandler(): log buffer")
-
 		lrw.SendEncodedBody(http.StatusOK, "text/html", bytesResponse)
 	} else {
 		err := t.Execute(lrw, &storage)
