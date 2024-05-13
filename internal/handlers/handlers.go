@@ -38,15 +38,12 @@ func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.S
 
 	if strings.Contains(acceptEncoding, "gzip") {
 		var buf bytes.Buffer
-
-		lrw.Header().Add("Content-Encoding", "gzip")
-		lrw.Header().Add("Content-Type", "html/text")
 		err := t.Execute(&buf, &storage)
 
 		bytesResponse, err := EncodeResponse(buf.Bytes())
 
 		log.Info().
-			Str("buf", string(buf.Bytes())).
+			Str("buf", buf.String()).
 			Str("bytesResponse", string(bytesResponse)).
 			Msg("MainHandler(): log buffer")
 
@@ -54,7 +51,7 @@ func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.S
 		//gz, _ := gzip.NewReader(&buf2)
 		//_, _ = gz.Read(bytesResponse)
 		//log.Info().
-		//	Str("buf2", string(buf2.Bytes())).
+		//	Str("buf2", buf2.String()).
 		//	Msg("MainHandler(): log buffer")
 
 		lrw.SendEncodedBody(http.StatusOK, "html/text", bytesResponse)
