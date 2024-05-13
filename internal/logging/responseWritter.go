@@ -33,3 +33,16 @@ func (lrw *ResponseWriter) LogQueryParams(c *gin.Context, startTime time.Time) {
 		Dur("execTime", time.Since(startTime)).
 		Msg("logQueryParams(): stats")
 }
+
+func (lrw *ResponseWriter) SendEncodedBody(code int, bytesResponse []byte) {
+	lrw.Header().Add("Content-Encoding", "gzip")
+	lrw.Header().Add("Content-Type", "application/json")
+	_, err := lrw.ResponseWriter.Write(bytesResponse)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Int("code", code).
+			Msg("SendEncodedBody(): write error")
+	}
+	lrw.WriteHeader(code)
+}

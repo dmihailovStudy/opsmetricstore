@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -23,6 +24,7 @@ type UserStats struct {
 }
 
 const method = "update"
+const compressRequest = true
 
 var baseURL string
 var endpoint string
@@ -123,9 +125,34 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 		if err != nil {
 			log.Err(err).Msg("newConfig: can't marshal new config")
 		}
-		body := bytes.NewBuffer(objectBytes)
 
-		resp, err := http.Post(baseURL, "application/json", body)
+		var resp *http.Response
+		contentType := "application/json"
+		if compressRequest {
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			if _, err := gz.Write(objectBytes); err != nil {
+				panic(err)
+			}
+			if err := gz.Close(); err != nil {
+				panic(err)
+			}
+
+			// Отправка POST запроса с данными gzip на сервер
+			req, err := http.NewRequest("POST", baseURL, &buf)
+			if err != nil {
+				panic(err)
+			}
+			req.Header.Set("Content-Encoding", "gzip")
+			req.Header.Set("Content-Type", contentType)
+
+			client := &http.Client{}
+			resp, err = client.Do(req)
+		} else {
+			body := bytes.NewBuffer(objectBytes)
+			resp, err = http.Post(baseURL, contentType, body)
+		}
+
 		if err != nil {
 			strErr := fmt.Sprint(err)
 			log.Error().
