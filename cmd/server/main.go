@@ -6,7 +6,6 @@ import (
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
-	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
@@ -33,7 +32,6 @@ func main() {
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.SetHTMLTemplate(html.MetricsTemplate)
 
 	router.GET(server.MainPath, handlers.MainMiddleware(&memStorage))

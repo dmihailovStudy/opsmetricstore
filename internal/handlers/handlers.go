@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"github.com/dmihailovStudy/opsmetricstore/internal/logging"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
+	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
 	"github.com/dmihailovStudy/opsmetricstore/transport/structure/metrics"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"html/template"
 	"io"
 	"net/http"
 	"strconv"
@@ -18,20 +20,37 @@ import (
 func MainMiddleware(s *storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
-		lrw := MainHandler(c, s)
+		lrw := logging.NewResponseWriter(c.Writer)
+		MainHandler(c, lrw, s)
 		lrw.LogQueryParams(c, startTime)
 	}
 }
 
-func MainHandler(c *gin.Context, storage *storage.Storage) *logging.ResponseWriter {
-	c.HTML(http.StatusOK, "storage", gin.H{
-		"gaugeBody":   storage.Gauges,
-		"counterBody": storage.Counters,
-	})
+func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.Storage) {
+	acceptEncoding := c.Request.Header.Get("Accept-Encoding")
+	t := template.Must(template.New("storage").Parse(html.Tmpl))
 
-	ginWriter := c.Writer
-	lrw := logging.NewResponseWriter(ginWriter)
-	return lrw
+	log.Info().
+		Str("acceptEncoding", acceptEncoding).
+		Interface("storage", storage).
+		Msg("MainHandler(): log params")
+
+	if acceptEncoding == "gzip" {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		lrw.Header().Add("Content-Encoding", "gzip")
+		lrw.Header().Add("Content-Type", "text/html")
+		lrw.WriteHeader(http.StatusOK)
+		err := t.Execute(gz, &storage)
+		if err != nil {
+			log.Error().Err(err).Msg("MainHandler(): error while html/template gzip execute")
+		}
+	} else {
+		err := t.Execute(lrw, &storage)
+		if err != nil {
+			log.Error().Err(err).Msg("MainHandler(): error while html/template gzip execute")
+		}
+	}
 }
 
 func GetMetricByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
