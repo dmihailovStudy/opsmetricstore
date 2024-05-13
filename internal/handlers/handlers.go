@@ -78,10 +78,9 @@ func GetMetricByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int
 		Str("metricType", metricType).
 		Msg("New get metric request")
 
-	//if !isTracking {
-	//	loggingWriter.WriteHeader(http.StatusNotFound)
-	//	return loggingWriter
-	//}
+	if !isTracking {
+		return http.StatusNotFound, []byte("not tracking metric")
+	}
 
 	var responseObject metrics.Body
 	responseObject.ID = requestObject.ID
