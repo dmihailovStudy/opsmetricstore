@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -35,13 +36,14 @@ func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.S
 		Interface("storage", storage).
 		Msg("MainHandler(): log params")
 
-	if acceptEncoding == "gzip" {
+	if strings.Contains(acceptEncoding, "gzip") {
 		var buf bytes.Buffer
 		gz := gzip.NewWriter(&buf)
 		lrw.Header().Add("Content-Encoding", "gzip")
 		lrw.Header().Add("Content-Type", "html/text")
-		lrw.WriteHeader(http.StatusOK)
 		err := t.Execute(gz, &storage)
+
+		lrw.WriteHeader(http.StatusOK)
 		if err != nil {
 			log.Error().Err(err).Msg("MainHandler(): error while html/template gzip execute")
 		}
@@ -295,7 +297,7 @@ func PrepareAndSendResponse(c *gin.Context, lrw *logging.ResponseWriter, status 
 
 	if string(rawResponse) == "" {
 		lrw.WriteHeader(status)
-	} else if acceptEncoding == "gzip" {
+	} else if strings.Contains(acceptEncoding, "gzip") {
 		bytesResponse, err := EncodeResponse(rawResponse)
 		if err != nil {
 			lrw.WriteHeader(http.StatusBadRequest)
