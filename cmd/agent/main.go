@@ -148,9 +148,17 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 
 			client := &http.Client{}
 			resp, err = client.Do(req)
+			defer resp.Body.Close()
+			if err != nil {
+				panic(err)
+			}
 		} else {
 			body := bytes.NewBuffer(objectBytes)
 			resp, err = http.Post(baseURL, contentType, body)
+			defer resp.Body.Close()
+			if err != nil {
+				panic(err)
+			}
 		}
 
 		if err != nil {
@@ -169,7 +177,6 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			Str("metricType", metricType).
 			Msg("sendMetrics: post ok")
 		responsesStatus = append(responsesStatus, resp.Status)
-		defer resp.Body.Close()
 	}
 	return responsesStatus
 }
