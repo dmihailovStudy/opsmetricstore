@@ -79,7 +79,7 @@ func GetMetricByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int
 		Msg("New get metric request")
 
 	if !isTracking {
-		return http.StatusNotFound, []byte("not tracking metric")
+		return http.StatusNotFound, []byte("GetMetricByJSONHandler(): not tracking metric")
 	}
 
 	var responseObject metrics.Body
@@ -130,6 +130,10 @@ func GetMetricByURLHandler(c *gin.Context, s *storage.Storage) (int, []byte) {
 			Str("metricName", metricType).
 			Msg(errMsg)
 		return http.StatusBadRequest, []byte(errMsg)
+	}
+
+	if !isTracking {
+		return http.StatusNotFound, []byte("GetMetricByURLHandler(): not tracking metric")
 	}
 
 	log.Info().
