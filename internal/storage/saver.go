@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,12 +12,9 @@ import (
 
 func SaveStoragePeriodically(storage *Storage, filePath string, interval time.Duration) {
 	ticker := time.NewTicker(interval)
-	for {
-		select {
-		case <-ticker.C:
-			log.Info().Msg("SaveStoragePeriodically(): write to snapshot file")
-			saveStorageToJsonFile(storage, filePath)
-		}
+	for range ticker.C {
+		log.Info().Msg("SaveStoragePeriodically(): write to snapshot file")
+		saveStorageToJSONFile(storage, filePath)
 	}
 }
 
@@ -30,7 +27,7 @@ func ReadStorageFromFile(filePath string) (Storage, error) {
 	}
 	defer file.Close()
 
-	data, err := ioutil.ReadAll(file)
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return storage, err
 	}
@@ -42,7 +39,7 @@ func ReadStorageFromFile(filePath string) (Storage, error) {
 	return storage, nil
 }
 
-func saveStorageToJsonFile(storage *Storage, filePath string) {
+func saveStorageToJSONFile(storage *Storage, filePath string) {
 	err := os.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
 		fmt.Println("Error creating directory:", err)

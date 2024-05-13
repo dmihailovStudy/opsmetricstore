@@ -48,7 +48,12 @@ func main() {
 	memStorage := storage.CreateDefaultStorage()
 
 	if restore {
-		memStorage, err = storage.ReadStorageFromFile(path)
+		localStorage, err := storage.ReadStorageFromFile(path)
+		if err != nil {
+			log.Error().Err(err).Msg("main(): error while loading local snapshot")
+		} else {
+			memStorage = localStorage
+		}
 	}
 
 	go storage.SaveStoragePeriodically(&memStorage, path, time.Duration(interval)*time.Second)
