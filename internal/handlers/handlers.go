@@ -38,12 +38,27 @@ func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.S
 
 	if strings.Contains(acceptEncoding, "gzip") {
 		var buf bytes.Buffer
-		gz := gzip.NewWriter(&buf)
+
 		lrw.Header().Add("Content-Encoding", "gzip")
 		lrw.Header().Add("Content-Type", "html/text")
-		err := t.Execute(gz, &storage)
+		err := t.Execute(&buf, &storage)
 
-		lrw.WriteHeader(http.StatusOK)
+		bytesResponse, err := EncodeResponse(buf.Bytes())
+
+		log.Info().
+			Str("buf", string(buf.Bytes())).
+			Str("bytesResponse", string(bytesResponse)).
+			Msg("MainHandler(): log buffer")
+
+		//var buf2 bytes.Buffer
+		//gz, _ := gzip.NewReader(&buf2)
+		//_, _ = gz.Read(bytesResponse)
+		//log.Info().
+		//	Str("buf2", string(buf2.Bytes())).
+		//	Msg("MainHandler(): log buffer")
+
+		lrw.SendEncodedBody(http.StatusOK, "html/text", bytesResponse)
+
 		if err != nil {
 			log.Error().Err(err).Msg("MainHandler(): error while html/template gzip execute")
 		}
@@ -309,7 +324,7 @@ func PrepareAndSendResponse(c *gin.Context, lrw *logging.ResponseWriter, status 
 					Msg("PrepareAndSendResponse(): Writer.WriteString error")
 			}
 		} else {
-			lrw.SendEncodedBody(status, bytesResponse)
+			lrw.SendEncodedBody(status, "application/json", bytesResponse)
 		}
 	} else {
 		lrw.WriteHeader(status)

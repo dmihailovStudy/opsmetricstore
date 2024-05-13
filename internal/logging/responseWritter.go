@@ -34,9 +34,9 @@ func (lrw *ResponseWriter) LogQueryParams(c *gin.Context, startTime time.Time) {
 		Msg("logQueryParams(): stats")
 }
 
-func (lrw *ResponseWriter) SendEncodedBody(code int, bytesResponse []byte) {
+func (lrw *ResponseWriter) SendEncodedBody(code int, contentType string, bytesResponse []byte) {
 	lrw.Header().Add("Content-Encoding", "gzip")
-	lrw.Header().Add("Content-Type", "application/json")
+	lrw.Header().Add("Content-Type", contentType)
 	lrw.WriteHeader(code)
 	_, err := lrw.Write(bytesResponse)
 	if err != nil {
