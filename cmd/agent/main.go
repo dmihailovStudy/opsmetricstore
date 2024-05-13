@@ -148,17 +148,17 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 
 			client := &http.Client{}
 			resp, err = client.Do(req)
-			defer resp.Body.Close()
 			if err != nil {
 				panic(err)
 			}
+			defer resp.Body.Close()
 		} else {
 			body := bytes.NewBuffer(objectBytes)
 			resp, err = http.Post(baseURL, contentType, body)
-			defer resp.Body.Close()
 			if err != nil {
 				panic(err)
 			}
+			defer resp.Body.Close()
 		}
 
 		if err != nil {

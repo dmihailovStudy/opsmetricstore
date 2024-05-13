@@ -283,7 +283,7 @@ func PrepareAndSendResponse(c *gin.Context, lrw *logging.ResponseWriter, status 
 					Int("intCode", intCode).
 					Msg("PrepareAndSendResponse(): Writer.WriteString error")
 			}
-			lrw.WriteHeader(http.StatusOK)
+			lrw.WriteHeader(http.StatusBadRequest)
 		} else {
 			lrw.SendEncodedBody(status, bytesResponse)
 		}
