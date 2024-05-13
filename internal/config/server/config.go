@@ -6,7 +6,7 @@ const ADefault = "localhost:8080"
 const AUsage = "specify the url"
 
 const IFlag = "i"
-const IDefault = 3
+const IDefault = 300
 const IUsage = "interval to save storage"
 
 const FFlag = "f"
