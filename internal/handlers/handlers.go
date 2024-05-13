@@ -276,6 +276,7 @@ func PrepareAndSendResponse(c *gin.Context, lrw *logging.ResponseWriter, status 
 	} else if acceptEncoding == "gzip" {
 		bytesResponse, err := EncodeResponse(rawResponse)
 		if err != nil {
+			lrw.WriteHeader(http.StatusBadRequest)
 			intCode, err := lrw.WriteString(err.Error())
 			if err != nil {
 				log.Error().
@@ -283,17 +284,16 @@ func PrepareAndSendResponse(c *gin.Context, lrw *logging.ResponseWriter, status 
 					Int("intCode", intCode).
 					Msg("PrepareAndSendResponse(): Writer.WriteString error")
 			}
-			lrw.WriteHeader(http.StatusBadRequest)
 		} else {
 			lrw.SendEncodedBody(status, bytesResponse)
 		}
 	} else {
+		lrw.WriteHeader(status)
 		_, err := lrw.Write(rawResponse)
 		if err != nil {
 			log.Error().
 				Err(err).
 				Msg("PrepareAndSendResponse(): Writer.Write error")
 		}
-		lrw.WriteHeader(status)
 	}
 }
