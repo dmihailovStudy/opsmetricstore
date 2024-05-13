@@ -24,7 +24,7 @@ type UserStats struct {
 }
 
 const method = "update"
-const compressRequest = true
+const compressRequest = false
 
 var baseURL string
 var endpoint string
@@ -132,10 +132,22 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			var buf bytes.Buffer
 			gz := gzip.NewWriter(&buf)
 			if _, err := gz.Write(objectBytes); err != nil {
-				panic(err)
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics: gz.Write error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
 			}
 			if err := gz.Close(); err != nil {
-				panic(err)
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics:  gz.Close() error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
 			}
 
 			// Отправка POST запроса с данными gzip на сервер
@@ -149,27 +161,30 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			client := &http.Client{}
 			resp, err = client.Do(req)
 			if err != nil {
-				panic(err)
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics: compressed response error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
 			}
 			defer resp.Body.Close()
 		} else {
 			body := bytes.NewBuffer(objectBytes)
 			resp, err = http.Post(baseURL, contentType, body)
 			if err != nil {
-				panic(err)
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics: post error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
 			}
 			defer resp.Body.Close()
 		}
 
-		if err != nil {
-			strErr := fmt.Sprint(err)
-			log.Error().
-				Err(err).
-				Str("path", baseURL).
-				Msg("sendMetrics: post error")
-			responsesStatus = append(responsesStatus, strErr)
-			continue
-		}
 		log.Info().
 			Str("path", baseURL).
 			Str("status", resp.Status).
