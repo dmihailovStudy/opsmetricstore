@@ -39,7 +39,7 @@ func MainHandler(c *gin.Context, lrw *logging.ResponseWriter, storage *storage.S
 		var buf bytes.Buffer
 		gz := gzip.NewWriter(&buf)
 		lrw.Header().Add("Content-Encoding", "gzip")
-		lrw.Header().Add("Content-Type", "text/html")
+		lrw.Header().Add("Content-Type", "html/text")
 		lrw.WriteHeader(http.StatusOK)
 		err := t.Execute(gz, &storage)
 		if err != nil {
