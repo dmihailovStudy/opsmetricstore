@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
@@ -11,43 +10,17 @@ import (
 )
 
 func main() {
-	var endpoint string
-	var interval int
-	var path string
-	var restore bool
-	var envs server.Envs
-
-	// read flags
-	flag.StringVar(&endpoint, server.AFlag, server.ADefault, server.AUsage)
-	flag.IntVar(&interval, server.IFlag, server.IDefault, server.IUsage)
-	flag.StringVar(&path, server.FFlag, server.FDefault, server.FUsage)
-	flag.BoolVar(&restore, server.RFlag, server.RDefault, server.RUsage)
-	flag.Parse()
+	var config server.Config
 
 	// read envs
-	err := envs.Load()
-	if err != nil {
-		log.Error().Err(err).Msg("main: env load error")
-	}
-
-	if envs.Address != "" {
-		endpoint = envs.Address
-	}
-	if envs.StoreInterval != 0 {
-		interval = envs.StoreInterval
-	}
-	if envs.Path != "" {
-		path = envs.Path
-	}
-	if envs.Restore {
-		restore = envs.Restore
-	}
+	config.Load()
+	log.Info().Interface("config", config).Msg("main(): startup with config")
 
 	// create empty storage
 	memStorage := storage.CreateDefaultStorage()
 
-	if restore {
-		localStorage, err := storage.ReadStorageFromFile(path)
+	if config.Restore {
+		localStorage, err := storage.ReadStorageFromFile(config.Path)
 		if err != nil {
 			log.Error().Err(err).Msg("main(): error while loading local snapshot")
 		} else {
@@ -55,7 +28,7 @@ func main() {
 		}
 	}
 
-	go storage.SaveStoragePeriodically(&memStorage, path, time.Duration(interval)*time.Second)
+	go storage.SaveStoragePeriodically(&memStorage, config.Path, time.Duration(config.StoreInterval)*time.Second)
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
@@ -66,7 +39,7 @@ func main() {
 	router.POST(server.UpdateByURLPath, handlers.UpdateByURLMiddleware(&memStorage))
 	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
 
-	err = router.Run(endpoint)
+	err := router.Run(config.Address)
 	if err != nil {
 		log.Error().Err(err).Msg("main(): router run error")
 	}

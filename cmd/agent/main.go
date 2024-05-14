@@ -24,7 +24,7 @@ type UserStats struct {
 }
 
 const method = "update"
-const compressRequest = false
+const compressRequest = true
 
 var baseURL string
 var endpoint string
