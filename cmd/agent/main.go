@@ -2,15 +2,19 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/agent"
-	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
+	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
+	"github.com/dmihailovStudy/opsmetricstore/transport/structure/metrics"
 	"github.com/fatih/structs"
 	"github.com/rs/zerolog/log"
 	"math/rand"
 	"net/http"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -20,6 +24,7 @@ type UserStats struct {
 }
 
 const method = "update"
+const compressRequest = true
 
 var baseURL string
 var endpoint string
@@ -37,7 +42,7 @@ func main() {
 
 	err := envs.Load()
 	if err != nil {
-		log.Err(err).Msg("main: env load error")
+		log.Err(err).Msg("main(): env load error")
 	}
 
 	if envs.Address != "" {
@@ -63,7 +68,7 @@ func main() {
 		case pollTime := <-pollTicker.C:
 			log.Info().
 				Str("pollTime", pollTime.String()).
-				Msg("New polling")
+				Msg("main(): new polling")
 			runtime.ReadMemStats(&runtimeStats)
 			userStats.PollCount = userStats.PollCount + 1
 			userStats.RandomValue = rand.Float64()
@@ -74,9 +79,9 @@ func main() {
 			log.Info().
 				Str("reportTime", reportTime.String()).
 				Int64("pollCount", userStats.PollCount).
-				Msg("New reporting")
-			sendMetrics(metrics.RuntimeMetrics, mapRuntimeStats)
-			sendMetrics(metrics.UserMetrics, mapUserStats)
+				Msg("main(): new reporting")
+			sendMetrics(storage.RuntimeMetrics, mapRuntimeStats)
+			sendMetrics(storage.UserMetrics, mapUserStats)
 		}
 	}
 }
@@ -84,25 +89,113 @@ func main() {
 func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []string {
 	var responsesStatus []string
 	for _, metric := range metricsArr {
-		metricType := metrics.GetMetricType(metric)
-		path := fmt.Sprintf("%s/%s/%s/%v", baseURL, metricType, metric, metricsMap[metric])
-		body := bytes.NewBuffer([]byte{})
-		resp, err := http.Post(path, "text/plain", body)
-		if err != nil {
-			strErr := fmt.Sprint(err)
-			log.Error().
-				Err(err).
-				Str("path", path).
-				Msg("sendMetrics: post error")
-			responsesStatus = append(responsesStatus, strErr)
-			continue
+		metricType := storage.GetMetricType(metric)
+		object := metrics.Body{
+			ID:    metric,
+			MType: metricType,
 		}
+
+		strMetric := fmt.Sprintf("%v", metricsMap[metric])
+
+		if metricType == "counter" {
+			value, err := strconv.ParseInt(strMetric, 10, 64)
+			object.Delta = &value
+
+			if err != nil {
+				log.Error().Err(err).
+					Str("name", metric).
+					Str("value", strMetric).
+					Msg("sendMetrics(): can't parse counter type")
+			}
+
+		} else {
+			value, err := strconv.ParseFloat(strMetric, 64)
+			if err != nil {
+				log.Error().Err(err).
+					Str("name", metric).
+					Str("value", strMetric).
+					Msg("sendMetrics(): can't parse gauge type")
+			}
+
+			object.Value = &value
+		}
+
+		objectBytes, err := json.Marshal(object)
+		if err != nil {
+			log.Error().Err(err).
+				Msg("newConfig(): can't marshal new config")
+		}
+
+		var resp *http.Response
+		contentType := "application/json"
+		if compressRequest {
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			if _, err := gz.Write(objectBytes); err != nil {
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics(): gz.Write error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
+			}
+			if err := gz.Close(); err != nil {
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics(): gz.Close() error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
+			}
+
+			// Отправка POST запроса с данными gzip на сервер
+			req, err := http.NewRequest("POST", baseURL, &buf)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics(): build gzip request error")
+			}
+			req.Header.Set("Content-Encoding", "gzip")
+			req.Header.Set("Content-Type", contentType)
+
+			client := &http.Client{}
+			resp, err = client.Do(req)
+			if err != nil {
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics(): compressed response error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
+			}
+			defer resp.Body.Close()
+		} else {
+			body := bytes.NewBuffer(objectBytes)
+			resp, err = http.Post(baseURL, contentType, body)
+			if err != nil {
+				strErr := fmt.Sprint(err)
+				log.Error().
+					Err(err).
+					Str("path", baseURL).
+					Msg("sendMetrics(): default post error")
+				responsesStatus = append(responsesStatus, strErr)
+				continue
+			}
+			defer resp.Body.Close()
+		}
+
 		log.Info().
-			Str("path", path).
+			Str("path", baseURL).
 			Str("status", resp.Status).
-			Msg("sendMetrics: post ok")
+			Str("metricName", metric).
+			Str("metricType", metricType).
+			Msg("sendMetrics(): post ok")
+
 		responsesStatus = append(responsesStatus, resp.Status)
-		defer resp.Body.Close()
 	}
 	return responsesStatus
 }

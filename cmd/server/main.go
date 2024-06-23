@@ -1,45 +1,46 @@
 package main
 
 import (
-	"flag"
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
-	"github.com/dmihailovStudy/opsmetricstore/internal/metrics"
-	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
+	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"time"
 )
 
 func main() {
-	var endpoint string
-	var envs server.Envs
-
-	// read flags
-	flag.StringVar(&endpoint, server.AFlag, server.ADefault, server.AUsage)
-	flag.Parse()
+	var config server.Config
 
 	// read envs
-	err := envs.Load()
-	if err != nil {
-		log.Err(err).Msg("main: env load error")
-	}
-	if envs.Address != "" {
-		endpoint = envs.Address
-	}
+	config.Load()
+	log.Info().Interface("config", config).Msg("main(): startup with config")
 
 	// create empty storage
-	memStorage := metrics.CreateDefaultStorage()
+	memStorage := storage.CreateDefaultStorage()
+
+	if config.Restore {
+		localStorage, err := storage.ReadStorageFromFile(config.Path)
+		if err != nil {
+			log.Error().Err(err).Msg("main(): error while loading local snapshot")
+		} else {
+			memStorage = localStorage
+		}
+	}
+
+	go storage.SaveStoragePeriodically(&memStorage, config.Path, time.Duration(config.StoreInterval)*time.Second)
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 
-	router.SetHTMLTemplate(html.MetricsTemplate)
 	router.GET(server.MainPath, handlers.MainMiddleware(&memStorage))
-	router.GET(server.MetricPath, handlers.MetricMiddleware(&memStorage))
-	router.POST(server.UpdatePath, handlers.UpdateMiddleware(&memStorage))
+	router.GET(server.GetMetricByURLPath, handlers.GetMetricByURLMiddleware(&memStorage))
+	router.POST(server.GetMetricByJSONPath, handlers.GetMetricByJSONMiddleware(&memStorage))
+	router.POST(server.UpdateByURLPath, handlers.UpdateByURLMiddleware(&memStorage))
+	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
 
-	err = router.Run(endpoint)
+	err := router.Run(config.Address)
 	if err != nil {
-		log.Err(err).Msg("main: router run error")
+		log.Error().Err(err).Msg("main(): router run error")
 	}
 }

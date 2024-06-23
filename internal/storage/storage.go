@@ -1,4 +1,4 @@
-package metrics
+package storage
 
 import (
 	"fmt"
@@ -38,10 +38,10 @@ func GetMetricType(metric string) string {
 	return "gauge"
 }
 
-func GetMetricValueString(metricType, metricName string, storage *Storage) (bool, string, error) {
+func GetMetricValue(metricType, metricName string, storage *Storage) (bool, string, int64, float64, error) {
+	err := errors.New("GetMetricValue: unknown metric type")
 	metricValueString := ""
 	isTracking := false
-	err := errors.New("GetMetricValueString: unknown metric name")
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
@@ -53,7 +53,7 @@ func GetMetricValueString(metricType, metricName string, storage *Storage) (bool
 		metricValueString = fmt.Sprint(metricValueFloat)
 		err = nil
 	}
-	return isTracking, metricValueString, err
+	return isTracking, metricValueString, metricValueInt, metricValueFloat, err
 }
 
 func GetMetricValueInt64(metricValueStr string) (int64, error) {
@@ -100,4 +100,17 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 		return http.StatusBadRequest
 	}
 	return http.StatusOK
+}
+
+func UpdateGaugeMetric(name string, value *float64, s *Storage) {
+	s.Gauges[name] = *value
+}
+
+func UpdateCounterMetric(name string, value *int64, s *Storage) {
+	_, isTracking := s.Counters[name]
+	if !isTracking {
+		s.Counters[name] = *value
+	} else {
+		s.Counters[name] += *value
+	}
 }
