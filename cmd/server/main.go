@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
+	"github.com/dmihailovStudy/opsmetricstore/internal/db"
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,6 @@ func main() {
 
 	// create empty storage
 	memStorage := storage.CreateDefaultStorage()
-
 	if config.Restore {
 		localStorage, err := storage.ReadStorageFromFile(config.Path)
 		if err != nil {
@@ -27,8 +27,10 @@ func main() {
 			memStorage = localStorage
 		}
 	}
-
 	go storage.SaveStoragePeriodically(&memStorage, config.Path, time.Duration(config.StoreInterval)*time.Second)
+
+	// init db
+	con := db.ConnectPostgres(log.Logger, config.DbDSN)
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
@@ -38,6 +40,7 @@ func main() {
 	router.POST(server.GetMetricByJSONPath, handlers.GetMetricByJSONMiddleware(&memStorage))
 	router.POST(server.UpdateByURLPath, handlers.UpdateByURLMiddleware(&memStorage))
 	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
+	router.GET(server.GetDbStatusPath, handlers.GetDbStatusMiddleware(con))
 
 	err := router.Run(config.Address)
 	if err != nil {
