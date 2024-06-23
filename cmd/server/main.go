@@ -30,7 +30,7 @@ func main() {
 	go storage.SaveStoragePeriodically(&memStorage, config.Path, time.Duration(config.StoreInterval)*time.Second)
 
 	// init db
-	con := db.ConnectPostgres(log.Logger, config.DbDSN)
+	db.ConnectPostgres(log.Logger, config.DBDSN)
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
@@ -40,7 +40,7 @@ func main() {
 	router.POST(server.GetMetricByJSONPath, handlers.GetMetricByJSONMiddleware(&memStorage))
 	router.POST(server.UpdateByURLPath, handlers.UpdateByURLMiddleware(&memStorage))
 	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
-	router.GET(server.GetDbStatusPath, handlers.GetDbStatusMiddleware(con))
+	router.GET(server.GetDBStatusPath, handlers.GetDBStatusMiddleware())
 
 	err := router.Run(config.Address)
 	if err != nil {

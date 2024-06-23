@@ -31,7 +31,7 @@ const DUsage = "postgres auth string"
 const MainPath = "/"
 const GetMetricByURLPath = "/value/:metricType/:metricName"
 const GetMetricByJSONPath = "/value"
-const GetDbStatusPath = "/ping"
+const GetDBStatusPath = "/ping"
 const UpdateByURLPath = "/update/:metricType/:metricName/:metricValue"
 const UpdateByJSONPath = "/update"
 
@@ -40,7 +40,7 @@ type Config struct {
 	StoreInterval int    `env:"STORE_INTERVAL"`
 	Path          string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
-	DbDSN         string `env:"DATABASE_DSN"`
+	DBDSN         string `env:"DATABASE_DSN"`
 }
 
 func (c *Config) Load() {

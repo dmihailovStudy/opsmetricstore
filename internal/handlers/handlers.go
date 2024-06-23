@@ -174,26 +174,26 @@ func GetMetricByURLHandler(c *gin.Context, s *storage.Storage) (int, []byte) {
 	return http.StatusOK, []byte(metricValueStr)
 }
 
-func GetDbStatusMiddleware(con *db.Con) gin.HandlerFunc {
+func GetDBStatusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
 		lrw := logging.NewResponseWriter(c.Writer)
-		status := GetDbStatusHandler(con)
+		status := GetDBStatusHandler()
 		PrepareAndSendResponse(c, lrw, status, []byte(""))
 		lrw.LogQueryParams(c, startTime)
 	}
 }
 
-func GetDbStatusHandler(con *db.Con) int {
-	err := con.Ping()
+func GetDBStatusHandler() int {
+	err := db.Ping()
 	if err != nil {
 		log.Warn().
 			Err(err).
-			Msg("GetDbStatusHandler(): failed ping")
+			Msg("GetDBStatusHandler(): failed ping")
 		return http.StatusInternalServerError
 	}
 	log.Info().
-		Msg("GetDbStatusHandler(): success ping")
+		Msg("GetDBStatusHandler(): success ping")
 	return http.StatusOK
 }
 

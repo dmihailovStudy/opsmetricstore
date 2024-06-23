@@ -6,21 +6,21 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type Con struct {
-	Db *sql.DB
-}
+var conn *sql.DB
 
-func ConnectPostgres(logger zerolog.Logger, dbDSN string) *Con {
-	var con Con
-	db, err := sql.Open("pgx", dbDSN)
+func ConnectPostgres(log zerolog.Logger, dbDSN string) {
+	var err error
+	conn, err = sql.Open("pgx", dbDSN)
 	if err != nil {
-		logger.Warn().Err(err).Msg("ConnectPostgres(): error while sql.Open")
+		log.Warn().Err(err).Msg("ConnectPostgres(): error while sql.Open")
 	}
-	con.Db = db
-	defer db.Close()
-	return &con
+
+	err = conn.Ping()
+	if err != nil {
+		log.Warn().Err(err).Msg("ConnectPostgres(): error while sql.Ping")
+	}
 }
 
-func (con *Con) Ping() error {
-	return con.Db.Ping()
+func Ping() error {
+	return conn.Ping()
 }
