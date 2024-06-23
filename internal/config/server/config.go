@@ -23,10 +23,15 @@ const RFlag = "r"
 const RDefault = true
 const RUsage = "restore start snapshot?"
 
+const DFlag = "d"
+const DDefault = ""
+const DUsage = "postgres auth string"
+
 // routing paths
 const MainPath = "/"
 const GetMetricByURLPath = "/value/:metricType/:metricName"
 const GetMetricByJSONPath = "/value"
+const GetDBStatusPath = "/ping"
 const UpdateByURLPath = "/update/:metricType/:metricName/:metricValue"
 const UpdateByJSONPath = "/update"
 
@@ -35,12 +40,12 @@ type Config struct {
 	StoreInterval int    `env:"STORE_INTERVAL"`
 	Path          string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
+	DBDSN         string `env:"DATABASE_DSN"`
 }
 
 func (c *Config) Load() {
-	var endpoint string
+	var endpoint, path, dbDSN string
 	var interval int
-	var path string
 	var restore bool
 	if err := env.Parse(c); err != nil {
 		errMsg := "Load(): parse env config"
@@ -52,6 +57,7 @@ func (c *Config) Load() {
 	flag.IntVar(&interval, IFlag, IDefault, IUsage)
 	flag.StringVar(&path, FFlag, FDefault, FUsage)
 	flag.BoolVar(&restore, RFlag, RDefault, RUsage)
+	flag.StringVar(&dbDSN, DFlag, DDefault, DUsage)
 	flag.Parse()
 
 	if c.Address == "" {
