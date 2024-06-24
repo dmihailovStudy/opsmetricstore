@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"github.com/dmihailovStudy/opsmetricstore/internal/db"
 	"github.com/dmihailovStudy/opsmetricstore/internal/logging"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
@@ -171,6 +172,29 @@ func GetMetricByURLHandler(c *gin.Context, s *storage.Storage) (int, []byte) {
 		Msg("GetMetricByURLHandler(): new get metric request")
 
 	return http.StatusOK, []byte(metricValueStr)
+}
+
+func GetDBStatusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := logging.NewResponseWriter(c.Writer)
+		status := GetDBStatusHandler()
+		PrepareAndSendResponse(c, lrw, status, []byte(""))
+		lrw.LogQueryParams(c, startTime)
+	}
+}
+
+func GetDBStatusHandler() int {
+	err := db.Ping()
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Msg("GetDBStatusHandler(): failed ping")
+		return http.StatusInternalServerError
+	}
+	log.Info().
+		Msg("GetDBStatusHandler(): success ping")
+	return http.StatusOK
 }
 
 func UpdateByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
