@@ -23,13 +23,16 @@ type UserStats struct {
 	RandomValue float64
 }
 
-const method = "update"
+const batchMode = false
+const singleMethod = "update"
+const batchMethod = "updates"
 const compressRequest = true
 
 var baseURL string
 var endpoint string
 var pollIntervalSec int
 var reportIntervalSec int
+var method string
 
 func main() {
 	var envs agent.Envs
@@ -53,6 +56,11 @@ func main() {
 	}
 	if envs.ReportInterval != 0 {
 		reportIntervalSec = envs.ReportInterval
+	}
+
+	method = singleMethod
+	if batchMode {
+		method = batchMethod
 	}
 
 	baseURL = fmt.Sprintf("http://%s/%s", endpoint, method)
@@ -80,17 +88,22 @@ func main() {
 				Str("reportTime", reportTime.String()).
 				Int64("pollCount", userStats.PollCount).
 				Msg("main(): new reporting")
-			sendMetrics(storage.RuntimeMetrics, mapRuntimeStats)
-			sendMetrics(storage.UserMetrics, mapUserStats)
+			if batchMode {
+				sendBatchMetrics(storage.RuntimeMetrics, mapRuntimeStats)
+				sendBatchMetrics(storage.UserMetrics, mapUserStats)
+			} else {
+				sendSingleMetrics(storage.RuntimeMetrics, mapRuntimeStats)
+				sendSingleMetrics(storage.UserMetrics, mapUserStats)
+			}
 		}
 	}
 }
 
-func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []string {
+func sendSingleMetrics(metricsArr []string, metricsMap map[string]interface{}) []string {
 	var responsesStatus []string
 	for _, metric := range metricsArr {
 		metricType := storage.GetMetricType(metric)
-		object := metrics.Body{
+		object := metrics.SingleBody{
 			ID:    metric,
 			MType: metricType,
 		}
@@ -105,7 +118,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().Err(err).
 					Str("name", metric).
 					Str("value", strMetric).
-					Msg("sendMetrics(): can't parse counter type")
+					Msg("sendSingleMetrics(): can't parse counter type")
 			}
 
 		} else {
@@ -114,7 +127,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().Err(err).
 					Str("name", metric).
 					Str("value", strMetric).
-					Msg("sendMetrics(): can't parse gauge type")
+					Msg("sendSingleMetrics(): can't parse gauge type")
 			}
 
 			object.Value = &value
@@ -136,7 +149,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics(): gz.Write error")
+					Msg("sendSingleMetrics(): gz.Write error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -145,7 +158,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics(): gz.Close() error")
+					Msg("sendSingleMetrics(): gz.Close() error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -156,7 +169,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics(): build gzip request error")
+					Msg("sendSingleMetrics(): build gzip request error")
 			}
 			req.Header.Set("Content-Encoding", "gzip")
 			req.Header.Set("Content-Type", contentType)
@@ -168,7 +181,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics(): compressed response error")
+					Msg("sendSingleMetrics(): compressed response error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -181,7 +194,7 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 				log.Error().
 					Err(err).
 					Str("path", baseURL).
-					Msg("sendMetrics(): default post error")
+					Msg("sendSingleMetrics(): default post error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
 			}
@@ -193,9 +206,109 @@ func sendMetrics(metricsArr []string, metricsMap map[string]interface{}) []strin
 			Str("status", resp.Status).
 			Str("metricName", metric).
 			Str("metricType", metricType).
-			Msg("sendMetrics(): post ok")
+			Msg("sendSingleMetrics(): post ok")
 
 		responsesStatus = append(responsesStatus, resp.Status)
 	}
 	return responsesStatus
+}
+
+func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
+	var body metrics.BatchBody
+	for _, metric := range metricsArr {
+		metricType := storage.GetMetricType(metric)
+		object := metrics.SingleBody{
+			ID:    metric,
+			MType: metricType,
+		}
+
+		strMetric := fmt.Sprintf("%v", metricsMap[metric])
+
+		if metricType == "counter" {
+			value, err := strconv.ParseInt(strMetric, 10, 64)
+			object.Delta = &value
+
+			if err != nil {
+				log.Error().Err(err).
+					Str("name", metric).
+					Str("value", strMetric).
+					Msg("sendSingleMetrics(): can't parse counter type")
+			}
+
+		} else {
+			value, err := strconv.ParseFloat(strMetric, 64)
+			if err != nil {
+				log.Error().Err(err).
+					Str("name", metric).
+					Str("value", strMetric).
+					Msg("sendSingleMetrics(): can't parse gauge type")
+			}
+
+			object.Value = &value
+		}
+
+		body = append(body, object)
+	}
+
+	objectBytes, err := json.Marshal(body)
+	if err != nil {
+		log.Error().Err(err).
+			Msg("sendBatchMetrics(): can't marshal new metrics")
+	}
+
+	var resp *http.Response
+	contentType := "application/json"
+	if compressRequest {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		if _, err := gz.Write(objectBytes); err != nil {
+			log.Error().
+				Err(err).
+				Str("path", baseURL).
+				Msg("sendBatchMetrics(): gz.Write error")
+		}
+		if err := gz.Close(); err != nil {
+			log.Error().
+				Err(err).
+				Str("path", baseURL).
+				Msg("sendBatchMetrics(): gz.Close() error")
+		}
+
+		// Отправка POST запроса с данными gzip на сервер
+		req, err := http.NewRequest("POST", baseURL, &buf)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("path", baseURL).
+				Msg("sendBatchMetrics(): build gzip request error")
+		}
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Content-Type", contentType)
+
+		client := &http.Client{}
+		resp, err = client.Do(req)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("path", baseURL).
+				Msg("sendSingleMetrics(): compressed response error")
+		}
+		defer resp.Body.Close()
+	} else {
+		body := bytes.NewBuffer(objectBytes)
+		resp, err = http.Post(baseURL, contentType, body)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("path", baseURL).
+				Msg("sendSingleMetrics(): default post error")
+		}
+		defer resp.Body.Close()
+	}
+
+	log.Info().
+		Str("path", baseURL).
+		Str("status", resp.Status).
+		Interface("metrics", body).
+		Msg("sendBatchMetrics(): post ok")
 }

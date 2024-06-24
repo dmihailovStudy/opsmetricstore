@@ -45,7 +45,7 @@ func TestSendMetrics(t *testing.T) {
 	}
 
 	for i, testCase := range sendMetricTestCases {
-		metricResponses := sendMetrics(testCase.input.metricsArr, testCase.input.metricsMap)
+		metricResponses := sendSingleMetrics(testCase.input.metricsArr, testCase.input.metricsMap)
 		testNum := i + 1
 		for j, metricResponse := range metricResponses {
 			if metricResponse != testCase.output[j] {

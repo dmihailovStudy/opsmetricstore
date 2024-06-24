@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"github.com/dmihailovStudy/opsmetricstore/internal/db"
 	"github.com/dmihailovStudy/opsmetricstore/internal/logging"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/dmihailovStudy/opsmetricstore/internal/templates/html"
@@ -66,13 +67,13 @@ func GetMetricByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
 		lrw := logging.NewResponseWriter(c.Writer)
-		body, err := DecodeBody(c)
+		body, err := DecodeSingleBody(c)
 
 		if err != nil {
 			log.Error().
 				Err(err).
 				Interface("body", body).
-				Msg("UpdateByJSONMiddleware(): DecodeBody err")
+				Msg("UpdateByJSONMiddleware(): DecodeSingleBody err")
 			lrw.WriteHeader(http.StatusNotFound)
 		} else {
 			status, rawResponse := GetMetricByJSONHandler(body, s)
@@ -83,7 +84,7 @@ func GetMetricByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
 	}
 }
 
-func GetMetricByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int, []byte) {
+func GetMetricByJSONHandler(requestObject metrics.SingleBody, s *storage.Storage) (int, []byte) {
 	metricType := requestObject.MType
 	metricName := requestObject.ID
 
@@ -110,7 +111,7 @@ func GetMetricByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int
 		return http.StatusNotFound, []byte("GetMetricByJSONHandler(): not tracking metric")
 	}
 
-	var responseObject metrics.Body
+	var responseObject metrics.SingleBody
 	responseObject.ID = requestObject.ID
 	responseObject.MType = requestObject.MType
 	if metricType == "counter" {
@@ -173,17 +174,40 @@ func GetMetricByURLHandler(c *gin.Context, s *storage.Storage) (int, []byte) {
 	return http.StatusOK, []byte(metricValueStr)
 }
 
+func GetDBStatusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := logging.NewResponseWriter(c.Writer)
+		status := GetDBStatusHandler()
+		PrepareAndSendResponse(c, lrw, status, []byte(""))
+		lrw.LogQueryParams(c, startTime)
+	}
+}
+
+func GetDBStatusHandler() int {
+	err := db.Ping()
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Msg("GetDBStatusHandler(): failed ping")
+		return http.StatusInternalServerError
+	}
+	log.Info().
+		Msg("GetDBStatusHandler(): success ping")
+	return http.StatusOK
+}
+
 func UpdateByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startTime := time.Now()
 		lrw := logging.NewResponseWriter(c.Writer)
-		body, err := DecodeBody(c)
+		body, err := DecodeSingleBody(c)
 
 		if err != nil {
 			log.Error().
 				Err(err).
 				Interface("body", body).
-				Msg("UpdateByJSONMiddleware(): DecodeBody err")
+				Msg("UpdateByJSONMiddleware(): DecodeSingleBody err")
 			lrw.WriteHeader(http.StatusNotFound)
 		} else {
 			status, rawResponse := UpdateByJSONHandler(body, s)
@@ -194,7 +218,7 @@ func UpdateByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
 	}
 }
 
-func UpdateByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int, []byte) {
+func UpdateByJSONHandler(requestObject metrics.SingleBody, s *storage.Storage) (int, []byte) {
 	responseStr := ""
 	metricType := requestObject.MType
 	metricName := requestObject.ID
@@ -207,6 +231,46 @@ func UpdateByJSONHandler(requestObject metrics.Body, s *storage.Storage) (int, [
 	} else {
 		responseStr = "Unknown metric type"
 		return http.StatusNotFound, []byte(responseStr)
+	}
+	return http.StatusOK, []byte(responseStr)
+}
+
+func UpdatesByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		startTime := time.Now()
+		lrw := logging.NewResponseWriter(c.Writer)
+		body, err := DecodeBatchBody(c)
+
+		if err != nil {
+			log.Error().
+				Err(err).
+				Interface("body", body).
+				Msg("UpdateByJSONMiddleware(): DecodeSingleBody err")
+			lrw.WriteHeader(http.StatusNotFound)
+		} else {
+			status, rawResponse := UpdatesByJSONHandler(body, s)
+			PrepareAndSendResponse(c, lrw, status, rawResponse)
+		}
+
+		lrw.LogQueryParams(c, startTime)
+	}
+}
+
+func UpdatesByJSONHandler(requestObject metrics.BatchBody, s *storage.Storage) (int, []byte) {
+	responseStr := ""
+	for _, metric := range requestObject {
+		metricType := metric.MType
+		metricName := metric.ID
+		metricDelta := metric.Delta
+		metricValue := metric.Value
+		if metricType == "gauge" {
+			storage.UpdateGaugeMetric(metricName, metricValue, s)
+		} else if metricType == "counter" {
+			storage.UpdateCounterMetric(metricName, metricDelta, s)
+		} else {
+			responseStr = "Unknown metric type"
+			return http.StatusNotFound, []byte(responseStr)
+		}
 	}
 	return http.StatusOK, []byte(responseStr)
 }
@@ -231,15 +295,15 @@ func UpdateByURLHandler(c *gin.Context, s *storage.Storage) (int, []byte) {
 	return status, []byte(strconv.Itoa(status))
 }
 
-func DecodeBody(c *gin.Context) (metrics.Body, error) {
-	var requestObject metrics.Body
+func DecodeSingleBody(c *gin.Context) (metrics.SingleBody, error) {
+	var requestObject metrics.SingleBody
 	var err error
 	jsonData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		log.Error().
 			Err(err).
 			Str("jsonData", string(jsonData)).
-			Msg("DecodeBody(): io.ReadAll err")
+			Msg("DecodeSingleBody(): io.ReadAll err")
 	}
 
 	encoding := c.Request.Header.Get("Content-Encoding")
@@ -249,7 +313,7 @@ func DecodeBody(c *gin.Context) (metrics.Body, error) {
 			log.Error().
 				Err(err).
 				Str("jsonData", string(jsonData)).
-				Msg("DecodeBody(): Unmarshal jsonData err")
+				Msg("DecodeSingleBody(): Unmarshal jsonData err")
 		}
 	} else if encoding == "gzip" {
 		reader, err := gzip.NewReader(bytes.NewBuffer(jsonData))
@@ -257,14 +321,14 @@ func DecodeBody(c *gin.Context) (metrics.Body, error) {
 			log.Error().
 				Err(err).
 				Str("jsonData", string(jsonData)).
-				Msg("DecodeBody(): gzip.NewReader err")
+				Msg("DecodeSingleBody(): gzip.NewReader err")
 		}
 
 		if err := json.NewDecoder(reader).Decode(&requestObject); err != nil {
 			log.Error().
 				Err(err).
 				Str("jsonData", string(jsonData)).
-				Msg("DecodeBody(): decode err")
+				Msg("DecodeSingleBody(): decode err")
 		}
 
 		defer reader.Close()
@@ -272,7 +336,53 @@ func DecodeBody(c *gin.Context) (metrics.Body, error) {
 
 	log.Info().
 		Interface("body", requestObject).
-		Msg("DecodeBody(): body after decoding")
+		Msg("DecodeSingleBody(): body after decoding")
+
+	return requestObject, err
+}
+
+func DecodeBatchBody(c *gin.Context) (metrics.BatchBody, error) {
+	var requestObject metrics.BatchBody
+	var err error
+	jsonData, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("jsonData", string(jsonData)).
+			Msg("DecodeSingleBody(): io.ReadAll err")
+	}
+
+	encoding := c.Request.Header.Get("Content-Encoding")
+	if encoding == "" {
+		err = json.Unmarshal(jsonData, &requestObject)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("jsonData", string(jsonData)).
+				Msg("DecodeSingleBody(): Unmarshal jsonData err")
+		}
+	} else if encoding == "gzip" {
+		reader, err := gzip.NewReader(bytes.NewBuffer(jsonData))
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("jsonData", string(jsonData)).
+				Msg("DecodeSingleBody(): gzip.NewReader err")
+		}
+
+		if err := json.NewDecoder(reader).Decode(&requestObject); err != nil {
+			log.Error().
+				Err(err).
+				Str("jsonData", string(jsonData)).
+				Msg("DecodeSingleBody(): decode err")
+		}
+
+		defer reader.Close()
+	}
+
+	log.Info().
+		Interface("body", requestObject).
+		Msg("DecodeSingleBody(): body after decoding")
 
 	return requestObject, err
 }
