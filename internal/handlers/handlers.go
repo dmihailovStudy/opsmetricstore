@@ -245,7 +245,7 @@ func UpdatesByJSONMiddleware(s *storage.Storage) gin.HandlerFunc {
 			log.Error().
 				Err(err).
 				Interface("body", body).
-				Msg("UpdateByJSONMiddleware(): DecodeSingleBody err")
+				Msg("UpdateByJSONMiddleware(): decode batch body err")
 			lrw.WriteHeader(http.StatusNotFound)
 		} else {
 			status, rawResponse := UpdatesByJSONHandler(body, s)
@@ -349,7 +349,7 @@ func DecodeBatchBody(c *gin.Context) (metrics.BatchBody, error) {
 		log.Error().
 			Err(err).
 			Str("jsonData", string(jsonData)).
-			Msg("DecodeSingleBody(): io.ReadAll err")
+			Msg("DecodeBatchBody(): io.ReadAll err")
 	}
 
 	encoding := c.Request.Header.Get("Content-Encoding")
@@ -359,7 +359,7 @@ func DecodeBatchBody(c *gin.Context) (metrics.BatchBody, error) {
 			log.Error().
 				Err(err).
 				Str("jsonData", string(jsonData)).
-				Msg("DecodeSingleBody(): Unmarshal jsonData err")
+				Msg("DecodeBatchBody(): Unmarshal jsonData err")
 		}
 	} else if encoding == "gzip" {
 		reader, err := gzip.NewReader(bytes.NewBuffer(jsonData))
@@ -367,14 +367,14 @@ func DecodeBatchBody(c *gin.Context) (metrics.BatchBody, error) {
 			log.Error().
 				Err(err).
 				Str("jsonData", string(jsonData)).
-				Msg("DecodeSingleBody(): gzip.NewReader err")
+				Msg("DecodeBatchBody(): gzip.NewReader err")
 		}
 
 		if err := json.NewDecoder(reader).Decode(&requestObject); err != nil {
 			log.Error().
 				Err(err).
 				Str("jsonData", string(jsonData)).
-				Msg("DecodeSingleBody(): decode err")
+				Msg("DecodeBatchBody(): decode err")
 		}
 
 		defer reader.Close()

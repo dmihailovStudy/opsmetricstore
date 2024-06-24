@@ -182,8 +182,9 @@ func sendSingleMetrics(metricsArr []string, metricsMap map[string]interface{}) [
 					Msg("sendSingleMetrics(): compressed response error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
+			} else {
+				defer resp.Body.Close()
 			}
-			defer resp.Body.Close()
 		} else {
 			body := bytes.NewBuffer(objectBytes)
 			resp, err = http.Post(baseURL, contentType, body)
@@ -195,8 +196,9 @@ func sendSingleMetrics(metricsArr []string, metricsMap map[string]interface{}) [
 					Msg("sendSingleMetrics(): default post error")
 				responsesStatus = append(responsesStatus, strErr)
 				continue
+			} else {
+				defer resp.Body.Close()
 			}
-			defer resp.Body.Close()
 		}
 
 		log.Info().
@@ -290,8 +292,9 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 				Err(err).
 				Str("path", baseURL).
 				Msg("sendBatchMetrics(): compressed response error")
+		} else {
+			defer resp.Body.Close()
 		}
-		defer resp.Body.Close()
 	} else {
 		body := bytes.NewBuffer(objectBytes)
 		resp, err = http.Post(baseURL, contentType, body)
@@ -300,8 +303,9 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 				Err(err).
 				Str("path", baseURL).
 				Msg("sendBatchMetrics(): default post error")
+		} else {
+			defer resp.Body.Close()
 		}
-		defer resp.Body.Close()
 	}
 
 	log.Info().
