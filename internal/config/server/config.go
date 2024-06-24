@@ -34,6 +34,7 @@ const GetMetricByJSONPath = "/value"
 const GetDBStatusPath = "/ping"
 const UpdateByURLPath = "/update/:metricType/:metricName/:metricValue"
 const UpdateByJSONPath = "/update"
+const UpdatesByJSONPath = "/updates"
 
 type Config struct {
 	Address       string `env:"ADDRESS"`

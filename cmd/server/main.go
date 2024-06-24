@@ -47,6 +47,7 @@ func main() {
 	router.POST(server.GetMetricByJSONPath, handlers.GetMetricByJSONMiddleware(&memStorage))
 	router.POST(server.UpdateByURLPath, handlers.UpdateByURLMiddleware(&memStorage))
 	router.POST(server.UpdateByJSONPath, handlers.UpdateByJSONMiddleware(&memStorage))
+	router.POST(server.UpdatesByJSONPath, handlers.UpdatesByJSONMiddleware(&memStorage))
 	router.GET(server.GetDBStatusPath, handlers.GetDBStatusMiddleware())
 
 	err := router.Run(config.Address)
