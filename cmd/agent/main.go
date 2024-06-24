@@ -23,7 +23,7 @@ type UserStats struct {
 	RandomValue float64
 }
 
-const batchMode = false
+const batchMode = true
 const singleMethod = "update"
 const batchMethod = "updates"
 const compressRequest = true
@@ -32,7 +32,6 @@ var baseURL string
 var endpoint string
 var pollIntervalSec int
 var reportIntervalSec int
-var method string
 
 func main() {
 	var envs agent.Envs
@@ -58,11 +57,10 @@ func main() {
 		reportIntervalSec = envs.ReportInterval
 	}
 
-	method = singleMethod
+	method := singleMethod
 	if batchMode {
 		method = batchMethod
 	}
-
 	baseURL = fmt.Sprintf("http://%s/%s", endpoint, method)
 
 	pollTicker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
@@ -232,7 +230,7 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 				log.Error().Err(err).
 					Str("name", metric).
 					Str("value", strMetric).
-					Msg("sendSingleMetrics(): can't parse counter type")
+					Msg("sendBatchMetrics(): can't parse counter type")
 			}
 
 		} else {
@@ -241,7 +239,7 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 				log.Error().Err(err).
 					Str("name", metric).
 					Str("value", strMetric).
-					Msg("sendSingleMetrics(): can't parse gauge type")
+					Msg("sendBatchMetrics(): can't parse gauge type")
 			}
 
 			object.Value = &value
@@ -291,7 +289,7 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 			log.Error().
 				Err(err).
 				Str("path", baseURL).
-				Msg("sendSingleMetrics(): compressed response error")
+				Msg("sendBatchMetrics(): compressed response error")
 		}
 		defer resp.Body.Close()
 	} else {
@@ -301,7 +299,7 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 			log.Error().
 				Err(err).
 				Str("path", baseURL).
-				Msg("sendSingleMetrics(): default post error")
+				Msg("sendBatchMetrics(): default post error")
 		}
 		defer resp.Body.Close()
 	}
