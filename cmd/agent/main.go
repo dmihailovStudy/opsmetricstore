@@ -23,9 +23,7 @@ type UserStats struct {
 	RandomValue float64
 }
 
-const batchMode = true
-const singleMethod = "update"
-const batchMethod = "updates"
+const method = "update"
 const compressRequest = true
 
 var baseURL string
@@ -56,11 +54,6 @@ func main() {
 	if envs.ReportInterval != 0 {
 		reportIntervalSec = envs.ReportInterval
 	}
-
-	method := singleMethod
-	if batchMode {
-		method = batchMethod
-	}
 	baseURL = fmt.Sprintf("http://%s/%s", endpoint, method)
 
 	pollTicker := time.NewTicker(time.Duration(pollIntervalSec) * time.Second)
@@ -86,13 +79,8 @@ func main() {
 				Str("reportTime", reportTime.String()).
 				Int64("pollCount", userStats.PollCount).
 				Msg("main(): new reporting")
-			if batchMode {
-				sendBatchMetrics(storage.RuntimeMetrics, mapRuntimeStats)
-				sendBatchMetrics(storage.UserMetrics, mapUserStats)
-			} else {
-				sendSingleMetrics(storage.RuntimeMetrics, mapRuntimeStats)
-				sendSingleMetrics(storage.UserMetrics, mapUserStats)
-			}
+			sendSingleMetrics(storage.RuntimeMetrics, mapRuntimeStats)
+			sendSingleMetrics(storage.UserMetrics, mapUserStats)
 		}
 	}
 }
