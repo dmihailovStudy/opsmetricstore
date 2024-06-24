@@ -23,7 +23,7 @@ type UserStats struct {
 	RandomValue float64
 }
 
-const batchMode = true
+const batchMode = false
 const singleMethod = "update"
 const batchMethod = "updates"
 const compressRequest = true
