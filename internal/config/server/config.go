@@ -41,6 +41,7 @@ type Config struct {
 	Path          string `env:"FILE_STORAGE_PATH"`
 	Restore       bool   `env:"RESTORE"`
 	DBDSN         string `env:"DATABASE_DSN"`
+	SaveMode      string
 }
 
 func (c *Config) Load() {
@@ -71,5 +72,9 @@ func (c *Config) Load() {
 	}
 	if !c.Restore {
 		c.Restore = restore
+	}
+	c.SaveMode = "file"
+	if c.DBDSN != DDefault {
+		c.SaveMode = "db"
 	}
 }

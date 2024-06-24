@@ -27,10 +27,17 @@ func main() {
 			memStorage = localStorage
 		}
 	}
-	go storage.SaveStoragePeriodically(&memStorage, config.Path, time.Duration(config.StoreInterval)*time.Second)
 
-	// init db
-	db.ConnectPostgres(log.Logger, config.DBDSN)
+	if config.SaveMode == "db" {
+		db.ConnectPostgres(log.Logger, config.DBDSN)
+		db.InitMigrations()
+	}
+	go storage.SaveStoragePeriodically(
+		&memStorage,
+		config.SaveMode,
+		config.Path,
+		time.Duration(config.StoreInterval)*time.Second,
+	)
 
 	router := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
