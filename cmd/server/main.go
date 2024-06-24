@@ -4,8 +4,11 @@ import (
 	"github.com/dmihailovStudy/opsmetricstore/internal/config/server"
 	"github.com/dmihailovStudy/opsmetricstore/internal/db"
 	"github.com/dmihailovStudy/opsmetricstore/internal/handlers"
+	"github.com/dmihailovStudy/opsmetricstore/internal/helpers"
+	"github.com/dmihailovStudy/opsmetricstore/internal/retries"
 	"github.com/dmihailovStudy/opsmetricstore/internal/storage"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"time"
 )
@@ -22,7 +25,26 @@ func main() {
 	if config.Restore {
 		localStorage, err := storage.ReadStorageFromFile(config.Path)
 		if err != nil {
-			log.Error().Err(err).Msg("main(): error while loading local snapshot")
+			log.Error().
+				Str("path", config.Path).
+				Err(errors.Unwrap(err)).
+				Msg("main(): error while loading local snapshot")
+
+			// retry load
+			delayArr := []int{retries.FirstRetryDelay, retries.SecondRetryDelay, retries.ThirdRetryDelay}
+			for i, delay := range delayArr {
+				helpers.Wait(delay)
+				localStorage, err = storage.ReadStorageFromFile(config.Path)
+				if err != nil {
+					log.Warn().
+						Int("retry", i+1).
+						Err(errors.Unwrap(err)).
+						Msg("main(): failed to retry local snapshot")
+				} else {
+					memStorage = localStorage
+					break
+				}
+			}
 		} else {
 			memStorage = localStorage
 		}

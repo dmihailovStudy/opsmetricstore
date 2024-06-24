@@ -2,9 +2,11 @@ package storage
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/dmihailovStudy/opsmetricstore/internal/db"
 	"github.com/dmihailovStudy/opsmetricstore/internal/db/models"
+	"github.com/dmihailovStudy/opsmetricstore/internal/helpers"
+	"github.com/dmihailovStudy/opsmetricstore/internal/retries"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"io"
 	"os"
@@ -49,51 +51,107 @@ func ReadStorageFromFile(filePath string) (Storage, error) {
 func saveStorageToJSONFile(storage *Storage, filePath string) {
 	err := os.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
-		fmt.Println("Error creating directory:", err)
+		log.Warn().
+			Err(errors.Unwrap(err)).
+			Msg("saveStorageToJSONFile(): error creating directory")
 		return
 	}
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
+		log.Warn().
+			Str("path", filePath).
+			Err(errors.Unwrap(err)).
+			Msg("saveStorageToJSONFile(): error creating file")
 		return
 	}
 	defer file.Close()
 
 	data, err := json.Marshal(storage)
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
+		log.Warn().
+			Interface("storage", storage).
+			Err(errors.Unwrap(err)).
+			Msg("saveStorageToJSONFile(): error marshalling JSON")
 		return
 	}
 
 	_, err = file.Write(data)
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
+		log.Warn().
+			Str("data", string(data)).
+			Err(errors.Unwrap(err)).
+			Msg("saveStorageToJSONFile(): error writing to file")
 	}
 }
 
 func saveStorageToDB(storage *Storage) {
+	go saveCountersToDB(storage.Counters)
+	saveGaugesToDB(storage.Gauges)
+}
+
+func saveCountersToDB(storageGauges map[string]int64) {
 	timestamp := time.Now().UTC()
 
-	var gauges models.Gauges
-	for name, value := range storage.Gauges {
-		gauge := models.Gauge{Timestamp: timestamp, Name: name, Value: value}
-		gauges = append(gauges, gauge)
-	}
-
 	var counters models.Counters
-	for name, value := range storage.Counters {
+	for name, value := range storageGauges {
 		counter := models.Counter{Timestamp: timestamp, Name: name, Value: value}
 		counters = append(counters, counter)
 	}
 
-	err := db.InsertGauges(gauges)
+	err := db.InsertCounters(counters)
 	if err != nil {
-		log.Warn().Interface("gauges", gauges).Err(err).Msg("saveStorageToDB(): failed to save gauges")
+		log.Warn().
+			Interface("counters", counters).
+			Err(err).
+			Msg("saveCountersToDB(): failed to save counters")
+
+		delayArr := []int{retries.FirstRetryDelay, retries.SecondRetryDelay, retries.ThirdRetryDelay}
+		for i, delay := range delayArr {
+			helpers.Wait(delay)
+			err = db.InsertCounters(counters)
+			if err != nil {
+				log.Warn().
+					Int("retry", i+1).
+					Interface("counters", counters).
+					Err(errors.Unwrap(err)).
+					Msg("saveCountersToDB(): failed to retry counters")
+			} else {
+				break
+			}
+		}
+	}
+}
+
+func saveGaugesToDB(storageGauges map[string]float64) {
+	timestamp := time.Now().UTC()
+
+	var gauges models.Gauges
+	for name, value := range storageGauges {
+		gauge := models.Gauge{Timestamp: timestamp, Name: name, Value: value}
+		gauges = append(gauges, gauge)
 	}
 
-	err = db.InsertCounters(counters)
+	err := db.InsertGauges(gauges)
 	if err != nil {
-		log.Warn().Interface("counters", counters).Err(err).Msg("saveStorageToDB(): failed to save counters")
+		log.Warn().
+			Interface("gauges", gauges).
+			Err(errors.Unwrap(err)).
+			Msg("saveGaugesToDB(): failed to save gauges")
+
+		delayArr := []int{retries.FirstRetryDelay, retries.SecondRetryDelay, retries.ThirdRetryDelay}
+		for i, delay := range delayArr {
+			helpers.Wait(delay)
+			err := db.InsertGauges(gauges)
+			if err != nil {
+				log.Warn().
+					Int("retry", i+1).
+					Interface("gauges", gauges).
+					Err(errors.Unwrap(err)).
+					Msg("saveGaugesToDB(): failed to retry gauges")
+			} else {
+				break
+			}
+		}
 	}
 }
