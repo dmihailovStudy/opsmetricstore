@@ -6,11 +6,14 @@ import (
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"strconv"
+	"sync"
 )
 
 type Storage struct {
 	Gauges   map[string]float64
 	Counters map[string]int64
+	gmx      *sync.RWMutex
+	cmx      *sync.RWMutex
 }
 
 // Counters adds new value to previous
@@ -38,18 +41,18 @@ func GetMetricType(metric string) string {
 	return "gauge"
 }
 
-func GetMetricValue(metricType, metricName string, storage *Storage) (bool, string, int64, float64, error) {
+func GetMetricValue(metricType, metricName string, s *Storage) (bool, string, int64, float64, error) {
 	err := errors.New("GetMetricValue: unknown metric type")
 	metricValueString := ""
 	isTracking := false
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
-		metricValueInt, isTracking = storage.Counters[metricName]
+		metricValueInt, isTracking = GetCounterMetric(metricName, s)
 		metricValueString = fmt.Sprint(metricValueInt)
 		err = nil
 	} else if metricType == GaugeType {
-		metricValueFloat, isTracking = storage.Gauges[metricName]
+		metricValueFloat, isTracking = GetGaugeMetric(metricName, s)
 		metricValueString = fmt.Sprint(metricValueFloat)
 		err = nil
 	}
@@ -66,7 +69,7 @@ func GetMetricValueFloat64(metricValueStr string) (float64, error) {
 	return metricValue, err
 }
 
-func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string, storage *Storage) int {
+func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string, s *Storage) int {
 	if metricType == CounterType {
 		metricValueInt64, err := GetMetricValueInt64(metricValueStr)
 		if err != nil {
@@ -78,11 +81,11 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 				Msg("GetMetricValueInt64: failed to convert metricValueStr")
 			return http.StatusBadRequest
 		}
-		_, isTracking := storage.Counters[metricName]
+		storeValue, isTracking := GetCounterMetric(metricName, s)
 		if !isTracking {
-			storage.Counters[metricName] = metricValueInt64
+			UpdateCounterMetric(metricName, metricValueInt64, s)
 		} else {
-			storage.Counters[metricName] += metricValueInt64
+			UpdateCounterMetric(metricName, storeValue+metricValueInt64, s)
 		}
 	} else if metricType == GaugeType {
 		metricValueFloat64, err := GetMetricValueFloat64(metricValueStr)
@@ -94,7 +97,7 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 				Msg("GetMetricValueFloat64: failed to convert metricValueStr")
 			return http.StatusBadRequest
 		}
-		storage.Gauges[metricName] = metricValueFloat64
+		s.Gauges[metricName] = metricValueFloat64
 	} else {
 		// bad metric type
 		return http.StatusBadRequest
@@ -102,15 +105,30 @@ func CheckUpdateMetricCorrectness(metricType, metricName, metricValueStr string,
 	return http.StatusOK
 }
 
-func UpdateGaugeMetric(name string, value *float64, s *Storage) {
-	s.Gauges[name] = *value
+func UpdateGaugeMetric(name string, value float64, s *Storage) {
+	s.gmx.Lock()
+	defer s.gmx.Unlock()
+	s.Gauges[name] = value
 }
 
-func UpdateCounterMetric(name string, value *int64, s *Storage) {
-	_, isTracking := s.Counters[name]
-	if !isTracking {
-		s.Counters[name] = *value
-	} else {
-		s.Counters[name] += *value
-	}
+func UpdateCounterMetric(name string, value int64, s *Storage) {
+	s.cmx.Lock()
+	defer s.cmx.Unlock()
+	s.Counters[name] = value
+}
+
+func GetGaugeMetric(name string, s *Storage) (float64, bool) {
+	s.gmx.RLock()
+	defer s.gmx.Unlock()
+
+	value, isTracking := s.Gauges[name]
+	return value, isTracking
+}
+
+func GetCounterMetric(name string, s *Storage) (int64, bool) {
+	s.cmx.RLock()
+	defer s.cmx.Unlock()
+
+	value, isTracking := s.Counters[name]
+	return value, isTracking
 }
