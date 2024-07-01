@@ -225,9 +225,14 @@ func UpdateByJSONHandler(requestObject metrics.SingleBody, s *storage.Storage) (
 	metricDelta := requestObject.Delta
 	metricValue := requestObject.Value
 	if metricType == "gauge" {
-		storage.UpdateGaugeMetric(metricName, metricValue, s)
+		storage.UpdateGaugeMetric(metricName, *metricValue, s)
 	} else if metricType == "counter" {
-		storage.UpdateCounterMetric(metricName, metricDelta, s)
+		storeValue, isTracking := storage.GetCounterMetric(metricName, s)
+		if !isTracking {
+			storage.UpdateCounterMetric(metricName, *metricDelta, s)
+		} else {
+			storage.UpdateCounterMetric(metricName, *metricDelta+storeValue, s)
+		}
 	} else {
 		responseStr = "Unknown metric type"
 		return http.StatusNotFound, []byte(responseStr)
@@ -264,9 +269,14 @@ func UpdatesByJSONHandler(requestObject metrics.BatchBody, s *storage.Storage) (
 		metricDelta := metric.Delta
 		metricValue := metric.Value
 		if metricType == "gauge" {
-			storage.UpdateGaugeMetric(metricName, metricValue, s)
+			storage.UpdateGaugeMetric(metricName, *metricValue, s)
 		} else if metricType == "counter" {
-			storage.UpdateCounterMetric(metricName, metricDelta, s)
+			storeValue, isTracking := storage.GetCounterMetric(metricName, s)
+			if !isTracking {
+				storage.UpdateCounterMetric(metricName, *metricDelta, s)
+			} else {
+				storage.UpdateCounterMetric(metricName, *metricDelta+storeValue, s)
+			}
 		} else {
 			responseStr = "Unknown metric type"
 			return http.StatusNotFound, []byte(responseStr)
