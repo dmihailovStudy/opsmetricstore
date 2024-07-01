@@ -294,6 +294,11 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 				Str("path", baseURL).
 				Msg("sendBatchMetrics(): compressed response error")
 		} else {
+			log.Info().
+				Str("path", baseURL).
+				Str("status", resp.Status).
+				Interface("metrics", body).
+				Msg("sendBatchMetrics(): post ok")
 			defer resp.Body.Close()
 		}
 	} else {
@@ -305,13 +310,12 @@ func sendBatchMetrics(metricsArr []string, metricsMap map[string]interface{}) {
 				Str("path", baseURL).
 				Msg("sendBatchMetrics(): default post error")
 		} else {
+			log.Info().
+				Str("path", baseURL).
+				Str("status", resp.Status).
+				Interface("metrics", body).
+				Msg("sendBatchMetrics(): post ok")
 			defer resp.Body.Close()
 		}
 	}
-
-	log.Info().
-		Str("path", baseURL).
-		Str("status", resp.Status).
-		Interface("metrics", body).
-		Msg("sendBatchMetrics(): post ok")
 }
