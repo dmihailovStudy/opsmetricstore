@@ -12,8 +12,8 @@ import (
 type Storage struct {
 	Gauges   map[string]float64
 	Counters map[string]int64
-	gmx      sync.RWMutex
-	cmx      sync.RWMutex
+	gmx      *sync.RWMutex
+	cmx      *sync.RWMutex
 }
 
 // Counters adds new value to previous
@@ -41,18 +41,18 @@ func GetMetricType(metric string) string {
 	return "gauge"
 }
 
-func GetMetricValue(metricType, metricName string, storage *Storage) (bool, string, int64, float64, error) {
+func GetMetricValue(metricType, metricName string, s *Storage) (bool, string, int64, float64, error) {
 	err := errors.New("GetMetricValue: unknown metric type")
 	metricValueString := ""
 	isTracking := false
 	metricValueInt := int64(0)
 	metricValueFloat := float64(0)
 	if metricType == CounterType {
-		metricValueInt, isTracking = storage.Counters[metricName]
+		metricValueInt, isTracking = GetCounterMetric(metricName, s)
 		metricValueString = fmt.Sprint(metricValueInt)
 		err = nil
 	} else if metricType == GaugeType {
-		metricValueFloat, isTracking = storage.Gauges[metricName]
+		metricValueFloat, isTracking = GetGaugeMetric(metricName, s)
 		metricValueString = fmt.Sprint(metricValueFloat)
 		err = nil
 	}
